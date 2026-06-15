@@ -1,64 +1,133 @@
-# GROUU — All-in-One Personal Workspace Dashboard
+# GROUU
 
-GROUU adalah aplikasi dashboard minimalis dan responsif yang dirancang untuk mengelola produktivitas dan finansial pribadi dalam satu layar. Aplikasi ini menggabungkan pencatatan pengeluaran (expense ledger), manajemen jadwal kegiatan (activity planner), dan penyimpanan catatan ide (blueprint notes) tanpa memerlukan database pihak ketiga yang rumit.
+GROUU adalah aplikasi dashboard personal yang membantu Anda mengelola **keuangan**, **jadwal aktivitas**, dan **catatan ide** dalam satu tempat. Proyek ini dibuat responsif, minimalis, dan terhubung dengan **Google Sheets** melalui **Google Apps Script** sebagai backend ringan.
 
-Live Demo: https://grouu.vercel.app/
-
----
-
-## Fitur Utama
-
-* **Quick Entry Workspace** — Input pengeluaran, agenda kegiatan, atau catatan memo secara kilat melalui satu formulir terpadu yang 100% responsif di layar HP maupun desktop.
-* **Smart Expense Ledger** — Pencatatan keuangan dengan format otomatis Rupiah dan pilihan metode pembayaran bertingkat (Cash, Bank, E-Wallet, atau Custom).
-* **Activity & Agenda Tracker** — Kelola jadwal harian, waktu mulai-selesai, hingga tautan langsung ke ruang meeting (seperti Zoom/Google Meet).
-* **Cloud Database Gratis** — Menggunakan Google Sheets sebagai tempat penyimpanan data utama, sehingga data Anda aman, transparan, dan bisa diakses kapan saja secara gratis.
+[Live Demo](https://grouu.vercel.app/)
 
 ---
 
-## Tech Stack yang Digunakan
+## Overview
 
-Aplikasi ini dibangun menggunakan kombinasi teknologi modern untuk performa yang cepat dan tampilan yang interaktif:
+GROUU dirancang untuk menjadi workspace harian yang cepat dan sederhana:
 
-* **Frontend Framework:** React 18 (TypeScript)
-* **Build Tool:** Vite (Super cepat untuk pengembangan lokal)
-* **Styling & UI:** Tailwind CSS (Untuk desain antarmuka modern dan responsif)
-* **Icons:** Lucide React
-* **Database & Backend:** Google Sheets API + Google Apps Script (GAS)
+- mencatat pengeluaran dengan cepat
+- mengatur agenda dan aktivitas
+- menyimpan blueprint notes beserta lampiran
+- memakai Google Sheets sebagai penyimpanan data utama
 
 ---
 
-## Cara Menjalankan Proyek Secara Lokal
+## Features
 
-Jika Anda ingin mencoba atau mengembangkan aplikasi ini di komputer sendiri, ikuti langkah mudah berikut:
+- **Quick Entry Workspace**  
+  Form terpadu untuk input data secara cepat di desktop maupun mobile.
 
-### Prasyarat
-Pastikan Anda sudah menginstal Node.js di komputer Anda.
+- **Expense Ledger**  
+  Pencatatan keuangan dengan kategori, metode pembayaran, dan format Rupiah.
 
-### 1. Clone Repositori
-Buka terminal/command prompt, lalu jalankan perintah:
+- **Activity & Agenda Tracker**  
+  Kelola jadwal kegiatan, waktu mulai-selesai, lokasi, dan catatan tambahan.
+
+- **Blueprint Notes**  
+  Simpan ide, referensi, dan file pendukung secara rapi.
+
+- **Google Sheets Integration**  
+  Data disimpan di Google Sheets melalui Google Apps Script, sehingga tidak membutuhkan database tradisional.
+
+---
+
+## Tech Stack
+
+- **Frontend:** React + TypeScript
+- **Build Tool:** Vite
+- **Styling:** Tailwind CSS
+- **Icons:** Lucide React
+- **Backend / Storage:** Google Apps Script + Google Sheets
+
+---
+
+## Project Structure
+
+Struktur utama project:
+
+- `src/` — source frontend
+- `api/` — endpoint/proxy backend
+- `index.html`
+- `vite.config.ts`
+- `package.json`
+- `.env.example`
+- `.gitignore`
+
+---
+
+## Requirements
+
+- Node.js
+- npm
+
+---
+
+## Installation
+
+```bash
 git clone https://github.com/boasvanjosep/GROUU.git
 cd GROUU
-
-### 2. Instal Dependency
-Instal semua modul/pustaka yang dibutuhkan oleh proyek:
 npm install
+```
 
-### 3. Jalankan Aplikasi (Development Mode)
-Mulai server lokal untuk melihat aplikasi berjalan di browser:
+---
+
+## Development
+
+```bash
 npm run dev
+```
 
-Buka alamat http://localhost:5173 (atau port yang tertera di terminal) di browser Anda.
-
----
-
-## Integrasi dengan Google Sheets Anda
-
-Agar data yang Anda input di aplikasi ini tersimpan ke Google Sheets Anda sendiri, Anda hanya perlu memasukkan API URL Gateway dan Token Google Apps Script Anda langsung melalui tombol Konfigurasi (ikon gerigi) yang ada di dalam aplikasi web GROUU. 
-
-Tidak perlu mengubah source code, semuanya bisa dikonfigurasi langsung dari halaman depan!
+Pada konfigurasi saat ini, Vite berjalan di **port 3000** dan host `0.0.0.0`.
 
 ---
 
-## Lisensi
+## Build
 
-Proyek ini dilisensikan di bawah Apache-2.0 License. Silakan gunakan, modifikasi, dan kembangkan sesuai kebutuhan Anda!
+```bash
+npm run build
+```
+
+## Preview Build
+
+```bash
+npm run preview
+```
+
+## Type Check
+
+```bash
+npm run lint
+```
+
+---
+
+## Configuration
+
+Untuk menghubungkan aplikasi ke instance Google Sheets milik Anda sendiri, siapkan:
+
+- Spreadsheet ID
+- Drive Folder ID
+- Calendar ID
+- Token autentikasi `GROUU_TOKEN`
+
+Setelah itu, masukkan URL gateway dan token melalui menu konfigurasi di aplikasi.
+
+---
+
+## Security Notes
+
+- Jangan commit file `.env` berisi kredensial asli.
+- Simpan token dan ID layanan di tempat yang aman.
+- Pastikan request ke backend selalu divalidasi menggunakan `grouuToken`.
+
+---
+
+## License
+
+Released under the **Apache-2.0 License**.
