@@ -1,0 +1,6 @@
+{
+  "name": "GROUU",
+  "description": "Unified personal finance and productivity workspace featuring elegant financial logging, Google integration, and beautiful minimalist archive.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

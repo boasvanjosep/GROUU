@@ -1,0 +1,12 @@
+node_modules/
+build/
+dist/
+coverage/
+.DS_Store
+desktop.ini
+*.log
+*.tsbuildinfo
+.env*
+!.env.example
+.vercel/
+*.tsbuildinfo
