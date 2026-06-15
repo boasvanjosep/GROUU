@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect, useRef } from 'react';
-import { CreditCard, Calendar, FileText, Check, UploadCloud, Link as LinkIcon, AlertCircle, ShoppingBag, Landmark, PhoneIcon } from 'lucide-react';
+import { CreditCard, Calendar, FileText, Check, UploadCloud, Link as LinkIcon, AlertCircle, ShoppingBag, Landmark, Wallet, Plus } from 'lucide-react';
 import { Expense, Activity, Note } from '../types';
 
 interface QuickEntryProps {
@@ -17,6 +17,10 @@ interface QuickEntryProps {
     urls?: string[]
   ) => Promise<boolean>;
 }
+
+// Konfigurasi Pilihan Dropdown Bertingkat
+const BANK_OPTIONS = ['BRI', 'BCA', 'Mandiri', 'BNI', 'Pilih Lain (Isi Sendiri)'];
+const WALLET_OPTIONS = ['GoPay', 'OVO', 'Dana', 'ShopeePay', 'Pilih Lain (Isi Sendiri)'];
 
 export function QuickEntry({ initialSubtab = 'expense', onAddExpense, onAddActivity, onAddNote }: QuickEntryProps) {
   const [activeForm, setActiveForm] = useState<'expense' | 'activity' | 'note'>(initialSubtab);
@@ -34,8 +38,20 @@ export function QuickEntry({ initialSubtab = 'expense', onAddExpense, onAddActiv
   const [expenseRawAmount, setExpenseRawAmount] = useState(0);
   const [expenseDesc, setExpenseDesc] = useState('');
   const [expenseCategory, setExpenseCategory] = useState<'FnB' | 'Mobility' | 'Study' | 'Personal' | 'Fun'>('FnB');
-  const [expensePayment, setExpensePayment] = useState<'BRI' | 'Gopay' | 'Cash'>('BRI');
   const [expenseNotes, setExpenseNotes] = useState('');
+
+  // State Baru untuk Dropdown Bertingkat Opsi A
+  const [payGroup, setPayGroup] = useState<'Cash' | 'Bank' | 'E-Wallet' | 'Lainnya'>('Cash');
+  const [payDetail, setPayDetail] = useState<string>('');
+  const [customPay, setCustomPay] = useState<string>('');
+
+  // Auto-reset detail option if group changes
+  useEffect(() => {
+    if (payGroup === 'Bank') setPayDetail(BANK_OPTIONS[0]);
+    else if (payGroup === 'E-Wallet') setPayDetail(WALLET_OPTIONS[0]);
+    else setPayDetail('');
+    setCustomPay('');
+  }, [payGroup]);
 
   // Auto currency formatter as user types
   const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -64,12 +80,32 @@ export function QuickEntry({ initialSubtab = 'expense', onAddExpense, onAddActiv
       return;
     }
 
+    // Konstruksi String Gabungan Dinamis (Opsi A)
+    let finalPaymentMethod = payGroup as string;
+    if (payGroup === 'Bank' || payGroup === 'E-Wallet') {
+      if (payDetail === 'Pilih Lain (Isi Sendiri)') {
+        if (!customPay.trim()) {
+          alert("Silakan ketik nama Bank/E-Wallet khusus Anda!");
+          return;
+        }
+        finalPaymentMethod = `${payGroup} - ${customPay.trim()}`;
+      } else {
+        finalPaymentMethod = `${payGroup} - ${payDetail}`;
+      }
+    } else if (payGroup === 'Lainnya') {
+      if (!customPay.trim()) {
+        alert("Silakan ketik metode pembayaran alternatif Anda!");
+        return;
+      }
+      finalPaymentMethod = customPay.trim();
+    }
+
     setLoading(true);
     const success = await onAddExpense({
       amount: expenseRawAmount,
       description: expenseDesc,
       category: expenseCategory,
-      paymentMethod: expensePayment,
+      paymentMethod: finalPaymentMethod, // Mengirimkan string gabungan ke API & GAS
       notes: expenseNotes,
     });
 
@@ -79,6 +115,7 @@ export function QuickEntry({ initialSubtab = 'expense', onAddExpense, onAddActiv
       setExpenseRawAmount(0);
       setExpenseDesc('');
       setExpenseNotes('');
+      setPayGroup('Cash');
     }
     setLoading(false);
   };
@@ -220,11 +257,11 @@ export function QuickEntry({ initialSubtab = 'expense', onAddExpense, onAddActiv
   };
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
+    <div className="max-w-2xl mx-auto space-y-6 px-2 sm:px-0 animate-in fade-in slide-in-from-bottom-4 duration-300">
       {/* Dynamic Selector Header */}
       <div className="flex flex-col space-y-2 border-b border-[#232326] pb-4">
         <div>
-          <h2 className="font-sans text-2xl font-bold text-white tracking-tight">Quick Entry Workspace</h2>
+          <h2 className="font-sans text-xl sm:text-2xl font-bold text-white tracking-tight">Quick Entry Workspace</h2>
           <p className="font-sans text-xs text-gray-400 mt-0.5">
             Log financial ledger, planning activities, and design blueprints in one screen.
           </p>
@@ -234,23 +271,21 @@ export function QuickEntry({ initialSubtab = 'expense', onAddExpense, onAddActiv
         <div className="grid grid-cols-3 bg-[#0A0A0B] p-1 rounded-xl border border-[#232326]">
           <button
             onClick={() => setActiveForm('expense')}
-            className={`py-2 px-3 rounded-lg text-xs font-semibold font-sans flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
-              activeForm === 'expense'
+            className={`py-2 px-1 sm:py-2 sm:px-3 rounded-lg text-[11px] sm:text-xs font-semibold font-sans flex items-center justify-center gap-1 sm:gap-1.5 transition-all cursor-pointer ${activeForm === 'expense'
                 ? 'bg-[#B4B0FF] text-[#0A0A0B]'
                 : 'text-gray-400 hover:text-white'
-            }`}
+              }`}
           >
             <CreditCard className="w-3.5 h-3.5" />
             <span>Expense</span>
           </button>
-          
+
           <button
             onClick={() => setActiveForm('activity')}
-            className={`py-2 px-3 rounded-lg text-xs font-semibold font-sans flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
-              activeForm === 'activity'
+            className={`py-2 px-1 sm:py-2 sm:px-3 rounded-lg text-[11px] sm:text-xs font-semibold font-sans flex items-center justify-center gap-1 sm:gap-1.5 transition-all cursor-pointer ${activeForm === 'activity'
                 ? 'bg-[#4FD1C5] text-[#0A0A0B]'
                 : 'text-gray-400 hover:text-white'
-            }`}
+              }`}
           >
             <Calendar className="w-3.5 h-3.5" />
             <span>Activity</span>
@@ -258,14 +293,13 @@ export function QuickEntry({ initialSubtab = 'expense', onAddExpense, onAddActiv
 
           <button
             onClick={() => setActiveForm('note')}
-            className={`py-2 px-3 rounded-lg text-xs font-semibold font-sans flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
-              activeForm === 'note'
+            className={`py-2 px-1 sm:py-2 sm:px-3 rounded-lg text-[11px] sm:text-xs font-semibold font-sans flex items-center justify-center gap-1 sm:gap-1.5 transition-all cursor-pointer ${activeForm === 'note'
                 ? 'bg-[#B4B0FF] text-[#0A0A0B]'
                 : 'text-gray-400 hover:text-white'
-            }`}
+              }`}
           >
             <FileText className="w-3.5 h-3.5" />
-            <span>Quick Note</span>
+            <span>Note</span>
           </button>
         </div>
       </div>
@@ -276,28 +310,28 @@ export function QuickEntry({ initialSubtab = 'expense', onAddExpense, onAddActiv
           {/* Gradated Large Amount Card */}
           <div className="relative overflow-hidden bg-gradient-to-tr from-[#1C1C1E] to-[#141416] border border-[#232326] rounded-2xl p-6 md:p-8 flex flex-col items-center justify-center text-center shadow-lg">
             <div className="absolute inset-0 bg-radial-gradient from-[#B4B0FF]/10 to-transparent pointer-events-none opacity-40" />
-            
+
             <label className="font-sans text-xs font-semibold tracking-widest text-[#B4B0FF] uppercase mb-3">
               Nominal Transaksi
             </label>
 
-            <div className="relative flex items-center gap-1">
+            <div className="relative flex items-center gap-1 w-full justify-center">
               <input
                 type="text"
                 value={expenseAmountStr}
                 onChange={handleAmountChange}
                 placeholder="Rp 0"
-                className="bg-transparent border-none text-center font-sans text-3xl md:text-5xl font-bold text-white w-full max-w-[280px] p-0 focus:ring-0 appearance-none outline-none tracking-tight leading-none placeholder-gray-600"
+                className="bg-transparent border-none text-center font-sans text-3xl md:text-5xl font-bold text-white w-full max-w-[320px] p-0 focus:ring-0 appearance-none outline-none tracking-tight leading-none placeholder-gray-600"
               />
             </div>
-            
+
             <p className="font-sans text-[11px] text-gray-500 mt-3">
               Type any number sequence directly to format Rp separators automatically
             </p>
           </div>
 
           {/* Form details */}
-          <div className="bg-[#1C1C1E] rounded-2xl border border-[#232326] p-5 md:p-6 space-y-4">
+          <div className="bg-[#1C1C1E] rounded-2xl border border-[#232326] p-4 sm:p-6 space-y-4">
             {/* Description Details */}
             <div className="flex flex-col space-y-1">
               <label className="font-sans text-xs font-medium text-gray-400">Deskripsi / Penerima</label>
@@ -325,11 +359,10 @@ export function QuickEntry({ initialSubtab = 'expense', onAddExpense, onAddActiv
                     key={cat.id}
                     type="button"
                     onClick={() => setExpenseCategory(cat.id)}
-                    className={`px-3 py-2 rounded-full font-sans text-[11px] tracking-wide uppercase transition-all cursor-pointer ${
-                      expenseCategory === cat.id
+                    className={`px-3 py-2 rounded-full font-sans text-[11px] tracking-wide uppercase transition-all cursor-pointer ${expenseCategory === cat.id
                         ? 'bg-[#B4B0FF]/20 text-[#B4B0FF] border border-[#B4B0FF]/50 font-bold shadow-[0_0_10px_rgba(180,176,255,0.15)]'
                         : 'bg-[#0A0A0B] text-gray-400 border border-[#232326] hover:border-gray-600'
-                    }`}
+                      }`}
                   >
                     {cat.label}
                   </button>
@@ -337,50 +370,96 @@ export function QuickEntry({ initialSubtab = 'expense', onAddExpense, onAddActiv
               </div>
             </div>
 
-            {/* Paid With custom cards */}
+            {/* Dropdown Bertingkat - LEVEL 1: GRUP UTAMA */}
             <div className="flex flex-col space-y-2 pt-2">
-              <label className="font-sans text-xs font-medium text-gray-400">Metode Pembayaran</label>
-              <div className="grid grid-cols-3 gap-3">
-                {/* Option 1: BRI */}
+              <label className="font-sans text-xs font-medium text-gray-400">Metode Pembayaran (Grup)</label>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                {/* Cash */}
                 <div
-                  onClick={() => setExpensePayment('BRI')}
-                  className={`p-3 rounded-xl border flex flex-col items-center justify-center text-center cursor-pointer transition-all ${
-                    expensePayment === 'BRI'
+                  onClick={() => setPayGroup('Cash')}
+                  className={`p-3 rounded-xl border flex flex-col items-center justify-center text-center cursor-pointer transition-all ${payGroup === 'Cash'
                       ? 'border-[#4FD1C5] bg-[#4FD1C5]/5 text-[#4FD1C5] font-bold'
                       : 'border-[#232326] bg-[#0A0A0B] text-gray-400 hover:text-white hover:border-gray-600'
-                  }`}
+                    }`}
                 >
-                  <Landmark className="w-5 h-5 mb-1" />
-                  <span className="font-sans text-[11px] uppercase tracking-wide">BRI</span>
-                </div>
-
-                {/* Option 2: Gopay */}
-                <div
-                  onClick={() => setExpensePayment('Gopay')}
-                  className={`p-3 rounded-xl border flex flex-col items-center justify-center text-center cursor-pointer transition-all ${
-                    expensePayment === 'Gopay'
-                      ? 'border-[#4FD1C5] bg-[#4FD1C5]/5 text-[#4FD1C5] font-bold'
-                      : 'border-[#232326] bg-[#0A0A0B] text-gray-400 hover:text-white hover:border-gray-600'
-                  }`}
-                >
-                  <ShoppingBag className="w-5 h-5 mb-1" />
-                  <span className="font-sans text-[11px] uppercase tracking-wide">GOPAY</span>
-                </div>
-
-                {/* Option 3: Cash */}
-                <div
-                  onClick={() => setExpensePayment('Cash')}
-                  className={`p-3 rounded-xl border flex flex-col items-center justify-center text-center cursor-pointer transition-all ${
-                    expensePayment === 'Cash'
-                      ? 'border-[#4FD1C5] bg-[#4FD1C5]/5 text-[#4FD1C5] font-bold'
-                      : 'border-[#232326] bg-[#0A0A0B] text-gray-400 hover:text-white hover:border-gray-600'
-                  }`}
-                >
-                  <CreditCard className="w-5 h-5 mb-1" />
+                  <CreditCard className="w-4 h-4 mb-1" />
                   <span className="font-sans text-[11px] uppercase tracking-wide">CASH</span>
+                </div>
+
+                {/* Bank */}
+                <div
+                  onClick={() => setPayGroup('Bank')}
+                  className={`p-3 rounded-xl border flex flex-col items-center justify-center text-center cursor-pointer transition-all ${payGroup === 'Bank'
+                      ? 'border-[#4FD1C5] bg-[#4FD1C5]/5 text-[#4FD1C5] font-bold'
+                      : 'border-[#232326] bg-[#0A0A0B] text-gray-400 hover:text-white hover:border-gray-600'
+                    }`}
+                >
+                  <Landmark className="w-4 h-4 mb-1" />
+                  <span className="font-sans text-[11px] uppercase tracking-wide">BANK</span>
+                </div>
+
+                {/* E-Wallet */}
+                <div
+                  onClick={() => setPayGroup('E-Wallet')}
+                  className={`p-3 rounded-xl border flex flex-col items-center justify-center text-center cursor-pointer transition-all ${payGroup === 'E-Wallet'
+                      ? 'border-[#4FD1C5] bg-[#4FD1C5]/5 text-[#4FD1C5] font-bold'
+                      : 'border-[#232326] bg-[#0A0A0B] text-gray-400 hover:text-white hover:border-gray-600'
+                    }`}
+                >
+                  <Wallet className="w-4 h-4 mb-1" />
+                  <span className="font-sans text-[11px] uppercase tracking-wide">E-WALLET</span>
+                </div>
+
+                {/* Lainnya */}
+                <div
+                  onClick={() => setPayGroup('Lainnya')}
+                  className={`p-3 rounded-xl border flex flex-col items-center justify-center text-center cursor-pointer transition-all ${payGroup === 'Lainnya'
+                      ? 'border-[#4FD1C5] bg-[#4FD1C5]/5 text-[#4FD1C5] font-bold'
+                      : 'border-[#232326] bg-[#0A0A0B] text-gray-400 hover:text-white hover:border-gray-600'
+                    }`}
+                >
+                  <Plus className="w-4 h-4 mb-1" />
+                  <span className="font-sans text-[11px] uppercase tracking-wide">LAINNYA</span>
                 </div>
               </div>
             </div>
+
+            {/* Dropdown Bertingkat - LEVEL 2: DETAIL OPSI */}
+            {(payGroup === 'Bank' || payGroup === 'E-Wallet') && (
+              <div className="flex flex-col space-y-1 pt-1 animate-in fade-in slide-in-from-top-2 duration-200">
+                <label className="font-sans text-xs font-medium text-gray-400">
+                  Pilih Detail {payGroup}
+                </label>
+                <select
+                  value={payDetail}
+                  onChange={(e) => setPayDetail(e.target.value)}
+                  className="w-full bg-[#0A0A0B] border border-[#232326] rounded-xl px-4 py-3 text-xs text-white focus:outline-none focus:border-[#4FD1C5] cursor-pointer appearance-none"
+                  style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' fill=\'none\' viewBox=\'0 0 24 24\' stroke=\'%236B7280\'%3E%3Cpath stroke-linecap=\'round\' stroke-linejoin=\'round\' stroke-width=\'2\' d=\'M19 9l-7 7-7-7\'%3E%3C/path%3E%3C/svg%3E")', backgroundPosition: 'right 1rem center', backgroundSize: '1rem', backgroundRepeat: 'no-repeat' }}
+                >
+                  {(payGroup === 'Bank' ? BANK_OPTIONS : WALLET_OPTIONS).map((opt) => (
+                    <option key={opt} value={opt} className="bg-[#1C1C1E] text-white text-xs">
+                      {opt}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {/* INPUT CUSTOM MANUAL (Jika milih Isi Sendiri / Milih Grup Lainnya) */}
+            {(payGroup === 'Lainnya' || payDetail === 'Pilih Lain (Isi Sendiri)') && (
+              <div className="flex flex-col space-y-1 pt-1 animate-in fade-in slide-in-from-top-2 duration-200">
+                <label className="font-sans text-xs font-medium text-[#4FD1C5]">
+                  Nama Metode Kustom (Ketik Sendiri)
+                </label>
+                <input
+                  type="text"
+                  value={customPay}
+                  onChange={(e) => setCustomPay(e.target.value)}
+                  placeholder={payGroup === 'Lainnya' ? "misal: Kasbon, Koin Crypto, Barter" : "misal: Bank Jago, SeaBank, Bank Jatim"}
+                  className="w-full bg-[#0A0A0B] border border-[#4FD1C5]/40 rounded-xl px-4 py-3 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-[#4FD1C5]"
+                />
+              </div>
+            )}
 
             {/* Optional extra notes */}
             <div className="flex flex-col space-y-1">
@@ -412,7 +491,7 @@ export function QuickEntry({ initialSubtab = 'expense', onAddExpense, onAddActiv
       {/* ----------------- FORM 2: NEW ACTIVITY ----------------- */}
       {activeForm === 'activity' && (
         <form onSubmit={handleSaveActivity} className="space-y-5 animate-in fade-in duration-200">
-          <div className="bg-[#1C1C1E] rounded-2xl border border-[#232326] p-5 md:p-6 space-y-4">
+          <div className="bg-[#1C1C1E] rounded-2xl border border-[#232326] p-4 sm:p-6 space-y-4">
             {/* Title / Activity name */}
             <div className="flex flex-col space-y-1">
               <label className="font-sans text-xs font-medium text-gray-400">Nama Kegiatan / Event Title</label>
@@ -500,7 +579,7 @@ export function QuickEntry({ initialSubtab = 'expense', onAddExpense, onAddActiv
       {/* ----------------- FORM 3: RECORD NOTE ----------------- */}
       {activeForm === 'note' && (
         <form onSubmit={handleSaveNote} className="space-y-5 animate-in fade-in duration-200">
-          <div className="bg-[#1C1C1E] rounded-2xl border border-[#232326] p-5 md:p-6 space-y-4">
+          <div className="bg-[#1C1C1E] rounded-2xl border border-[#232326] p-4 sm:p-6 space-y-4">
             {/* Note Title */}
             <div className="flex flex-col space-y-1">
               <label className="font-sans text-xs font-medium text-gray-400">Judul Catatan</label>
@@ -544,7 +623,7 @@ export function QuickEntry({ initialSubtab = 'expense', onAddExpense, onAddActiv
                 <button
                   type="button"
                   onClick={handleAddUrlField}
-                  className="text-[#B4B0FF] hover:text-white text-xs font-bold"
+                  className="text-[#B4B0FF] hover:text-white text-xs font-bold cursor-pointer"
                 >
                   + Tambah Tautan
                 </button>
@@ -565,7 +644,7 @@ export function QuickEntry({ initialSubtab = 'expense', onAddExpense, onAddActiv
                     <button
                       type="button"
                       onClick={() => handleRemoveUrl(index)}
-                      className="text-red-400 hover:text-red-300 p-2"
+                      className="text-red-400 hover:text-red-300 p-2 text-xs font-bold cursor-pointer"
                     >
                       ✕
                     </button>
@@ -594,7 +673,7 @@ export function QuickEntry({ initialSubtab = 'expense', onAddExpense, onAddActiv
                 <span className="font-sans text-xs font-semibold text-gray-300 group-hover:text-[#B4B0FF] transition-colors mb-1">
                   {attachedFiles.length > 0 ? `${attachedFiles.length} File(s) Attached` : 'Drop files here, or browse'}
                 </span>
-                <span className="font-mono text-[10px] text-gray-500 truncate max-w-[220px]">
+                <span className="font-mono text-[10px] text-gray-500 truncate max-w-[220px] sm:max-w-md">
                   {attachedFiles.length > 0 ? attachedFiles.map(f => f.fileName).join(', ') : 'Binary payload will base64-upload to Drive'}
                 </span>
               </div>

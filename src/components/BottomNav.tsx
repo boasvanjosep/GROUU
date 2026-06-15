@@ -12,7 +12,7 @@ interface BottomNavProps {
 
 export function BottomNav({ activeTab, setActiveTab }: BottomNavProps) {
   return (
-    <nav className="fixed bottom-0 left-0 w-full z-40 md:hidden bg-[#141416]/95 backdrop-blur-xl border-t border-[#232326] py-1.5 pb-safe">
+    <nav className="fixed bottom-0 left-0 w-full z-50 md:hidden bg-[#141416]/95 backdrop-blur-xl border-t border-[#232326] py-1.5 pb-safe">
       <div className="flex justify-around items-center px-4 w-full">
         {/* Dashboard Menu Button */}
         <button

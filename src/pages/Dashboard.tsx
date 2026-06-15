@@ -22,6 +22,13 @@ interface DashboardProps {
 export function Dashboard({ onNavigate, totals, syncing, lastSync }: DashboardProps) {
   const config = getAppConfig();
 
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour >= 4 && hour < 12) return 'Good morning.';
+    if (hour >= 12 && hour < 17) return 'Good afternoon.';
+    return 'Good evening.';
+  };
+
   const openExternal = (url: string) => {
     if (!url) return;
     window.open(url, '_blank', 'noopener,noreferrer');
@@ -49,7 +56,7 @@ export function Dashboard({ onNavigate, totals, syncing, lastSync }: DashboardPr
           <span className="font-sans font-medium">Personal Finance & Productivity Space</span>
         </div>
         <h1 className="font-sans text-3xl md:text-4xl font-semibold text-white tracking-tight leading-tight">
-          Good morning. 
+          {getGreeting()}
         </h1>
         <p className="font-sans text-sm text-gray-400 mt-1 max-w-xl">
           What would you like to focus on today?

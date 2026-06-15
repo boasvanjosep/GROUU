@@ -18,13 +18,11 @@ export interface Note {
   driveFileIds?: string;
 }
 
-export interface Expense {
-  id: string;
+export interface ExpenseData {
   amount: number;
+  category: string;
+  paymentMethod: string;
   description: string;
-  category: 'FnB' | 'Mobility' | 'Study' | 'Personal' | 'Fun';
-  paymentMethod: 'BRI' | 'Gopay' | 'Cash';
-  createdAt: string;
   notes?: string;
 }
 

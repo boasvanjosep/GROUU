@@ -19,6 +19,7 @@ export default function App() {
   // Navigation Routing States
   const [activeTab, setActiveTab] = useState<'dashboard' | 'archive' | 'quick-entry'>('dashboard');
   const [activeSubtab, setActiveSubtab] = useState<'expense' | 'activity' | 'note'>('expense');
+  const [showSettings, setShowSettings] = useState(false);
 
   // Cohesive Local Database states synced with localStorage & Google services
   const [notes, setNotes] = useState<Note[]>([]);
@@ -219,6 +220,8 @@ export default function App() {
         setActiveTab={setActiveTab}
         onRefresh={() => reloadData(false)}
         onConfigChange={handleConfigChange}
+        showSettings={showSettings}
+        setShowSettings={setShowSettings}
       />
 
       {/* Mobile Top Header */}
@@ -233,7 +236,9 @@ export default function App() {
         </div>
         
         {/* Dynamic status pill */}
-        <div className={`flex items-center gap-1.5 px-2 py-1 rounded-full text-[10px] border ${
+        <div 
+          onClick={() => setShowSettings(true)}
+          className={`cursor-pointer flex items-center gap-1.5 px-2 py-1 rounded-full text-[10px] border ${
           statsSyncing
             ? 'bg-[#4FD1C5]/10 text-[#4FD1C5] border-[#4FD1C5]/20'
             : liveStats

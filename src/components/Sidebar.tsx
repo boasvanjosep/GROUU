@@ -13,10 +13,11 @@ interface SidebarProps {
   setActiveTab: (tab: 'dashboard' | 'archive' | 'quick-entry') => void;
   onRefresh?: () => void;
   onConfigChange?: () => void;
+  showSettings: boolean;
+  setShowSettings: (show: boolean) => void;
 }
 
-export function Sidebar({ activeTab, setActiveTab, onRefresh, onConfigChange }: SidebarProps) {
-  const [showSettings, setShowSettings] = useState(false);
+export function Sidebar({ activeTab, setActiveTab, onRefresh, onConfigChange, showSettings, setShowSettings }: SidebarProps) {
   const [config, setConfig] = useState(getAppConfig());
   const [saveSuccess, setSaveSuccess] = useState(false);
 
@@ -168,11 +169,11 @@ export function Sidebar({ activeTab, setActiveTab, onRefresh, onConfigChange }: 
 
       {/* Configuration modal / drawer */}
       {showSettings && (
-        <div className="fixed inset-0 bg-[#0A0A0B]/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
-          <div className="w-full max-w-lg bg-[#1C1C1E] border border-[#232326] rounded-2xl p-6 shadow-2xl relative overflow-hidden">
+        <div className="fixed inset-0 bg-[#0A0A0B]/80 backdrop-blur-md z-[100] flex items-center justify-center p-4 sm:p-6">
+          <div className="w-full max-w-lg bg-[#1C1C1E] border border-[#232326] rounded-2xl p-5 sm:p-6 shadow-2xl relative flex flex-col max-h-[90vh]">
             <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-[#B4B0FF] to-[#4FD1C5]" />
 
-            <div className="flex justify-between items-center mb-6">
+            <div className="flex justify-between items-center mb-4 sm:mb-6 shrink-0">
               <div>
                 <h3 className="font-sans text-lg font-bold text-white">GROUU Google Setup</h3>
                 <p className="font-sans text-xs text-gray-400">Link with your Google Apps Script, Sheets & Calendar API</p>
@@ -185,7 +186,8 @@ export function Sidebar({ activeTab, setActiveTab, onRefresh, onConfigChange }: 
               </button>
             </div>
 
-            <form onSubmit={handleSave} className="space-y-4">
+            <form onSubmit={handleSave} className="space-y-4 flex flex-col min-h-0">
+              <div className="flex-1 overflow-y-auto space-y-4 pr-1">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="flex flex-col space-y-1">
                   <label className="font-sans text-xs text-gray-400">User Display Name</label>
@@ -260,7 +262,8 @@ export function Sidebar({ activeTab, setActiveTab, onRefresh, onConfigChange }: 
                 </p>
               </div>
 
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-4 border-t border-[#232326]">
+              </div>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-4 border-t border-[#232326] shrink-0">
                 <div className="flex gap-2">
                   <button
                     type="button"
