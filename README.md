@@ -1,41 +1,64 @@
-# GROUU: Personal Financial & Productivity Co-Pilot 🚀
+# GROUU — All-in-One Personal Workspace Dashboard
 
-GROUU adalah aplikasi asisten keuangan dan produktivitas pribadi modern berbasis **Full-Stack Serverless Architecture**. Aplikasi ini menggunakan **React 18 + TypeScript + Vite** di sisi Frontend dan memanfaatkan **Google Apps Script (GAS)** sebagai API Gateway serverless untuk berinteraksi langsung dengan ekosistem Google Workspace (Sheets, Calendar, Drive) tanpa memerlukan database tradisional.
+GROUU adalah aplikasi dashboard minimalis dan responsif yang dirancang untuk mengelola produktivitas dan finansial pribadi dalam satu layar. Aplikasi ini menggabungkan pencatatan pengeluaran (expense ledger), manajemen jadwal kegiatan (activity planner), dan penyimpanan catatan ide (blueprint notes) tanpa memerlukan database pihak ketiga yang rumit.
 
-Untuk mencegah celah *open-relay* pada Google Apps Script, proyek ini menggunakan **Vercel Serverless Functions** sebagai secure reverse proxy yang dilengkapi validasi lintas token (`GROUU_TOKEN`) dan proteksi bypass non-browser client.
-
----
-
-## 🛠️ Tech Stack & Arsitektur
-
-- **Frontend:** React 18, TypeScript, Vite, Tailwind CSS, Lucide React.
-- **Secure Proxy:** Vercel Serverless Functions (Node.js).
-- **Backend/Database:** Google Apps Script (GAS), Google Sheets (Ledger), Google Calendar (Agenda), Google Drive (Binary Storage).
+Live Demo: https://grouu.vercel.app/
 
 ---
 
-## 🔒 Fitur Keamanan (Production-Ready)
+## Fitur Utama
 
-1. **Pre-Shared Access Token (`GROUU_TOKEN`):** Otentikasi berlapis dari Frontend -> Vercel Proxy -> Google Apps Script menggunakan token terenkripsi yang disimpan di Vercel Env dan GAS Script Properties.
-2. **Anti-Bypass Protection:** Memblokir request ilegal langsung dari non-browser clients (seperti cURL, Postman, atau bot scanner).
-3. **Zero Hardcoded Credentials:** Tidak ada ID Spreadsheet, ID Folder Drive, atau Token yang ditulis di dalam source code. Semua dibaca dinamis melalui memori server.
+* **Quick Entry Workspace** — Input pengeluaran, agenda kegiatan, atau catatan memo secara kilat melalui satu formulir terpadu yang 100% responsif di layar HP maupun desktop.
+* **Smart Expense Ledger** — Pencatatan keuangan dengan format otomatis Rupiah dan pilihan metode pembayaran bertingkat (Cash, Bank, E-Wallet, atau Custom).
+* **Activity & Agenda Tracker** — Kelola jadwal harian, waktu mulai-selesai, hingga tautan langsung ke ruang meeting (seperti Zoom/Google Meet).
+* **Cloud Database Gratis** — Menggunakan Google Sheets sebagai tempat penyimpanan data utama, sehingga data Anda aman, transparan, dan bisa diakses kapan saja secara gratis.
 
 ---
 
-## 📁 Struktur Repositori
+## Tech Stack yang Digunakan
 
-```text
-/
-├── index.html          # Entry point utama aplikasi
-├── package.json        # Manifest npm & dependencies
-├── vite.config.ts      # Konfigurasi bundler Vite
-├── api/
-│   └── gas.js          # Node.js Serverless Proxy (Vercel Backend)
-└── src/
-    ├── main.tsx        # Pengeksekusi utama DOM React
-    ├── App.tsx         # Root component & global routing
-    ├── config.ts       # Sinkronisasi konfig & local storage sanitizer
-    ├── types.ts        # Definisi tipe data TypeScript
-    ├── components/     # Sidebar, BottomNav, Toast UI
-    ├── pages/          # Dashboard, QuickEntry, Archive (Daftar Catatan)
-    └── services/       # Handler Axios/Fetch dengan injeksi GROUU_TOKEN
+Aplikasi ini dibangun menggunakan kombinasi teknologi modern untuk performa yang cepat dan tampilan yang interaktif:
+
+* **Frontend Framework:** React 18 (TypeScript)
+* **Build Tool:** Vite (Super cepat untuk pengembangan lokal)
+* **Styling & UI:** Tailwind CSS (Untuk desain antarmuka modern dan responsif)
+* **Icons:** Lucide React
+* **Database & Backend:** Google Sheets API + Google Apps Script (GAS)
+
+---
+
+## Cara Menjalankan Proyek Secara Lokal
+
+Jika Anda ingin mencoba atau mengembangkan aplikasi ini di komputer sendiri, ikuti langkah mudah berikut:
+
+### Prasyarat
+Pastikan Anda sudah menginstal Node.js di komputer Anda.
+
+### 1. Clone Repositori
+Buka terminal/command prompt, lalu jalankan perintah:
+git clone https://github.com/boasvanjosep/GROUU.git
+cd GROUU
+
+### 2. Instal Dependency
+Instal semua modul/pustaka yang dibutuhkan oleh proyek:
+npm install
+
+### 3. Jalankan Aplikasi (Development Mode)
+Mulai server lokal untuk melihat aplikasi berjalan di browser:
+npm run dev
+
+Buka alamat http://localhost:5173 (atau port yang tertera di terminal) di browser Anda.
+
+---
+
+## Integrasi dengan Google Sheets Anda
+
+Agar data yang Anda input di aplikasi ini tersimpan ke Google Sheets Anda sendiri, Anda hanya perlu memasukkan API URL Gateway dan Token Google Apps Script Anda langsung melalui tombol Konfigurasi (ikon gerigi) yang ada di dalam aplikasi web GROUU. 
+
+Tidak perlu mengubah source code, semuanya bisa dikonfigurasi langsung dari halaman depan!
+
+---
+
+## Lisensi
+
+Proyek ini dilisensikan di bawah Apache-2.0 License. Silakan gunakan, modifikasi, dan kembangkan sesuai kebutuhan Anda!
