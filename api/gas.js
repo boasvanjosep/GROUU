@@ -1,6 +1,18 @@
-import { isAllowedGasUrl } from '../src/utils/gasUrl';
-
 const MAX_BODY_BYTES = 4 * 1024 * 1024;
+
+const isAllowedGasUrl = (value) => {
+  try {
+    const url = new URL(value);
+    return (
+      url.protocol === 'https:' &&
+      url.hostname === 'script.google.com' &&
+      url.pathname.startsWith('/macros/s/') &&
+      url.pathname.endsWith('/exec')
+    );
+  } catch {
+    return false;
+  }
+};
 
 const sendJson = (res, status, body) => {
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
