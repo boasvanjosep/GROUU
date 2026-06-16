@@ -207,18 +207,19 @@ export const apiService = {
   // --- NOTES ARCHIVE ---
   listNotes: async (): Promise<Note[]> => {
     const config = getAppConfig();
-    const local = getFallbackData<Note>(STORAGE_KEYS.NOTES, INITIAL_NOTES);
     const deletedNoteIds: string[] = JSON.parse(localStorage.getItem(DELETED_KEYS.NOTES) || '[]');
 
     if (isGasActive(config.gasUrl)) {
       try {
         const result = await requestGas<{ data?: unknown[] }>({ action: 'listNotes' });
         if (result && Array.isArray(result.data)) {
+          // GAS is the source of truth — map all fields including Drive file metadata
           const gasData = (result.data as any[]).map(row => ({
             id: row.id,
             title: row.title,
             content: row.content,
             url: row.url,
+            urls: row.urls || [],
             createdAt: row.createdAt,
             category: row.category,
             attachmentName: row.attachmentName,
@@ -226,16 +227,19 @@ export const apiService = {
             driveFileUrl: row.driveFileUrl || row.attachmentUrl,
             driveFileIds: row.driveFileIds,
           })) as Note[];
-          const merged = mergeDataById(gasData, local, deletedNoteIds);
-          localStorage.setItem(STORAGE_KEYS.NOTES, JSON.stringify(merged));
-          return merged;
+
+          // Filter out locally-deleted items, then replace local cache entirely with GAS data
+          const authoritative = gasData.filter(n => !deletedNoteIds.includes(n.id));
+          localStorage.setItem(STORAGE_KEYS.NOTES, JSON.stringify(authoritative));
+          return authoritative;
         }
       } catch (err) {
         console.warn("Google Apps Script sync failed, returning local cached content:", err);
       }
     }
 
-    // Even without GAS, filter out deleted IDs from local
+    // GAS unreachable — fall back to local cache, still filter out deleted IDs
+    const local = getFallbackData<Note>(STORAGE_KEYS.NOTES, INITIAL_NOTES);
     const filtered = local.filter(n => !deletedNoteIds.includes(n.id));
     if (filtered.length !== local.length) {
       localStorage.setItem(STORAGE_KEYS.NOTES, JSON.stringify(filtered));

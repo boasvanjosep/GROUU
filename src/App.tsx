@@ -94,9 +94,20 @@ export default function App() {
     reloadData(true);
   }, []);
 
-  // Auto-refresh data ketika pindah tab untuk menampilkan perubahan terkini dari sheet
+  // Auto-refresh: hit GAS when switching to data tabs
   useEffect(() => {
-    if (activeTab === 'dashboard' || activeTab === 'archive') {
+    if (activeTab === 'archive') {
+      // Always fetch notes fresh from GAS when opening Archive
+      setLoading(true);
+      apiService.listNotes()
+        .then(dbNotes => {
+          setNotes(dbNotes);
+        })
+        .catch(() => {
+          // silently fall back to cached state
+        })
+        .finally(() => setLoading(false));
+    } else if (activeTab === 'dashboard') {
       reloadData(true);
     }
   }, [activeTab]);
@@ -175,7 +186,21 @@ export default function App() {
     }
   };
 
-  // Helper stats computer — merged: live GAS stats override local when available
+  // Dedicated notes-only refresh — always fetches from GAS, used by Archive Refresh button
+  const handleRefreshNotes = useCallback(async () => {
+    setLoading(true);
+    try {
+      const dbNotes = await apiService.listNotes();
+      setNotes(dbNotes);
+      triggerToast('Notes synced from cloud', 'success');
+    } catch {
+      triggerToast('Could not reach cloud. Showing cached data.', 'info');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+
   const totals = liveStats
     ? {
         expensesCount: liveStats.totalLedgerItems,
@@ -274,7 +299,7 @@ export default function App() {
           <Archive
             notes={notes}
             loading={loading}
-            onRefresh={() => reloadData(false)}
+            onRefresh={handleRefreshNotes}
             onNavigateToCreate={() => handleDashboardShortcutNavigate('quick-entry', 'note')}
             onDeleteNote={handleDeleteNote}
           />
