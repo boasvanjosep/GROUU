@@ -210,13 +210,17 @@ const getFallbackData = <T>(key: string, initial: T[]): T[] => {
   return JSON.parse(cached);
 };
 
-// Merge data arrays by ID: local items are preserved, GAS items not in local are added
+// Merge data arrays by ID: GAS items overwrite local items to ensure sync
 function mergeDataById<T extends { id: string }>(gasData: T[], localData: T[], deletedIds: string[] = []): T[] {
-  const localIds = new Set(localData.map(item => item.id));
   const deleted = new Set(deletedIds);
-  const merged = [...localData];
-  for (const item of gasData) {
-    if (!localIds.has(item.id) && !deleted.has(item.id)) {
+  const gasIds = new Set(gasData.map(item => item.id));
+  
+  // Start with GAS data (source of truth)
+  const merged = gasData.filter(item => !deleted.has(item.id));
+  
+  // Keep local items that haven't been synced to GAS yet
+  for (const item of localData) {
+    if (!gasIds.has(item.id) && !deleted.has(item.id)) {
       merged.push(item);
     }
   }
@@ -373,8 +377,9 @@ export const apiService = {
 
         if (noteToDelete?.driveFileIds) {
           payload.driveFileIds = noteToDelete.driveFileIds;
+        } else if (noteToDelete?.driveFileUrl) {
+          payload.driveFileIds = noteToDelete.driveFileUrl;
         }
-
         await requestGas(payload);
       } catch (err) {
         console.warn("GAS deletion erred, updated local cache only:", err);
@@ -650,6 +655,8 @@ export const apiService = {
         };
         if (taskToDelete?.driveFileIds) {
           payload.driveFileIds = taskToDelete.driveFileIds;
+        } else if (taskToDelete?.driveFileUrl) {
+          payload.driveFileIds = taskToDelete.driveFileUrl;
         }
         await requestGas(payload);
       } catch (err) {
