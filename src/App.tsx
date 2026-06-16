@@ -10,14 +10,15 @@ import { Toast } from './components/Toast';
 import { Dashboard } from './pages/Dashboard';
 import { Archive } from './pages/Archive';
 import { QuickEntry } from './pages/QuickEntry';
-import { Note, Expense, Activity } from './types';
-import { apiService, STORAGE_KEYS, INITIAL_NOTES, INITIAL_EXPENSES, INITIAL_SCHEDULE, DashboardStats } from './services/api';
+import { Tasks } from './pages/Tasks';
+import { Note, Expense, Activity, Task } from './types';
+import { apiService, STORAGE_KEYS, INITIAL_NOTES, INITIAL_EXPENSES, INITIAL_SCHEDULE, INITIAL_TASKS, DashboardStats } from './services/api';
 import { getAppConfig } from './config';
 import { Terminal, Database, Sparkles, Sliders } from 'lucide-react';
 
 export default function App() {
   // Navigation Routing States
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'archive' | 'quick-entry'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'archive' | 'quick-entry' | 'tasks'>('dashboard');
   const [activeSubtab, setActiveSubtab] = useState<'expense' | 'activity' | 'note'>('expense');
   const [showSettings, setShowSettings] = useState(false);
 
@@ -25,6 +26,7 @@ export default function App() {
   const [notes, setNotes] = useState<Note[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [schedules, setSchedules] = useState<Activity[]>([]);
+  const [tasks, setTasks] = useState<Task[]>([]);
   
   // Loading & Toaster feedback overlays state
   const [loading, setLoading] = useState(false);
@@ -65,19 +67,23 @@ export default function App() {
       setExpenses(cachedExpenses);
       const cachedSchedules: Activity[] = JSON.parse(localStorage.getItem(STORAGE_KEYS.SCHEDULE) || 'null') || INITIAL_SCHEDULE;
       setSchedules(cachedSchedules);
+      const cachedTasks: Task[] = JSON.parse(localStorage.getItem(STORAGE_KEYS.TASKS) || 'null') || INITIAL_TASKS;
+      setTasks(cachedTasks);
 
       // Only fetch from GAS on explicit refresh (silent=false) to avoid overwriting
       // local state with stale GAS data. List functions now merge localStorage data
       // with GAS responses and track deleted IDs for consistency.
       if (!silent) {
-        const [dbNotes, dbExpenses, dbSchedules] = await Promise.all([
+        const [dbNotes, dbExpenses, dbSchedules, dbTasks] = await Promise.all([
           apiService.listNotes(),
           apiService.listExpenses(),
-          apiService.listSchedules()
+          apiService.listSchedules(),
+          apiService.listTasks()
         ]);
         setNotes(dbNotes);
         setExpenses(dbExpenses);
         setSchedules(dbSchedules);
+        setTasks(dbTasks);
         triggerToast('Data synced successfully', 'success');
       }
     } catch (err) {
@@ -106,6 +112,14 @@ export default function App() {
         .catch(() => {
           // silently fall back to cached state
         })
+        .finally(() => setLoading(false));
+    } else if (activeTab === 'tasks') {
+      setLoading(true);
+      apiService.listTasks()
+        .then(dbTasks => {
+          setTasks(dbTasks);
+        })
+        .catch(() => {})
         .finally(() => setLoading(false));
     } else if (activeTab === 'dashboard') {
       reloadData(true);
@@ -200,6 +214,48 @@ export default function App() {
     }
   }, []);
 
+  const handleRefreshTasks = useCallback(async () => {
+    setLoading(true);
+    try {
+      const dbTasks = await apiService.listTasks();
+      setTasks(dbTasks);
+      triggerToast('Tasks synced from cloud', 'success');
+    } catch {
+      triggerToast('Could not reach cloud. Showing cached data.', 'info');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const handleAddTask = async (
+    taskData: Omit<Task, 'id' | 'createdAt'>,
+    file?: { fileName: string; fileData: string }
+  ): Promise<boolean> => {
+    try {
+      const saved = await apiService.createTask(taskData, file);
+      setTasks((prev) => [saved, ...prev]);
+      triggerToast(`Task "${taskData.name}" created successfully`, 'success');
+      return true;
+    } catch (err) {
+      triggerToast('Error creating task', 'error');
+      return false;
+    }
+  };
+
+  const handleDeleteTask = async (id: string): Promise<boolean> => {
+    try {
+      const success = await apiService.deleteTask(id);
+      if (success) {
+        setTasks((prev) => prev.filter(t => t.id !== id));
+        triggerToast('Task deleted successfully', 'success');
+        return true;
+      }
+      return false;
+    } catch (err) {
+      triggerToast('Error deleting task', 'error');
+      return false;
+    }
+  };
 
   const totals = liveStats
     ? {
@@ -218,7 +274,7 @@ export default function App() {
       };
 
   const handleDashboardShortcutNavigate = (
-    tab: 'dashboard' | 'archive' | 'quick-entry',
+    tab: 'dashboard' | 'archive' | 'quick-entry' | 'tasks',
     subtab?: 'expense' | 'activity' | 'note'
   ) => {
     setActiveTab(tab);
@@ -302,6 +358,16 @@ export default function App() {
             onRefresh={handleRefreshNotes}
             onNavigateToCreate={() => handleDashboardShortcutNavigate('quick-entry', 'note')}
             onDeleteNote={handleDeleteNote}
+          />
+        )}
+
+        {activeTab === 'tasks' && (
+          <Tasks
+            tasks={tasks}
+            loading={loading}
+            onRefresh={handleRefreshTasks}
+            onAddTask={handleAddTask}
+            onDeleteTask={handleDeleteTask}
           />
         )}
 

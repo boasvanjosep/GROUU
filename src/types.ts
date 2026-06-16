@@ -38,3 +38,20 @@ export interface Activity {
   notes?: string;
   createdAt: string;
 }
+
+export type TaskProgress = 'Not Yet' | 'On Progress' | 'Done';
+
+export interface Task {
+  id: string;
+  name: string;
+  subject: string;
+  progress: TaskProgress;
+  deadline: string; // ISO date string or YYYY-MM-DD
+  url?: string;
+  urls?: string[];
+  attachmentName?: string;
+  attachmentUrl?: string; // local blob url
+  driveFileUrl?: string; // google drive url
+  driveFileIds?: string;
+  createdAt: string;
+}

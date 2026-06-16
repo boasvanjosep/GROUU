@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { Note, Expense, Activity } from '../types';
+import { Note, Expense, Activity, Task } from '../types';
 import { getAppConfig } from '../config';
 import { isAllowedGasUrl } from '../utils/gasUrl';
 
@@ -72,6 +72,9 @@ export const STORAGE_KEYS = {
   },
   get SCHEDULE() {
     return getScopedStorageKey('schedule');
+  },
+  get TASKS() {
+    return getScopedStorageKey('tasks');
   }
 };
 
@@ -84,6 +87,9 @@ const DELETED_KEYS = {
   },
   get SCHEDULE() {
     return getScopedStorageKey('deleted_schedule');
+  },
+  get TASKS() {
+    return getScopedStorageKey('deleted_tasks');
   }
 };
 
@@ -164,6 +170,33 @@ export const INITIAL_SCHEDULE: Activity[] = [
     location: 'Discord Server / Lobby Room',
     notes: 'Sprint 14 checkup.',
     createdAt: '2026-06-04T14:00:00Z'
+  }
+];
+
+export const INITIAL_TASKS: Task[] = [
+  {
+    id: 't1',
+    name: 'Implement Auth Flow',
+    subject: 'Frontend',
+    progress: 'Done',
+    deadline: '2026-06-10',
+    createdAt: '2026-06-05T09:00:00Z'
+  },
+  {
+    id: 't2',
+    name: 'Design Database Schema',
+    subject: 'Backend',
+    progress: 'On Progress',
+    deadline: '2026-06-20',
+    createdAt: '2026-06-15T10:00:00Z'
+  },
+  {
+    id: 't3',
+    name: 'Prepare Pitch Deck',
+    subject: 'Business',
+    progress: 'Not Yet',
+    deadline: '2026-06-25',
+    createdAt: '2026-06-16T11:00:00Z'
   }
 ];
 
@@ -497,5 +530,123 @@ export const apiService = {
     }
 
     return newActivity;
+  },
+
+  // --- TASKS ---
+  listTasks: async (): Promise<Task[]> => {
+    const config = getAppConfig();
+    const local = getFallbackData<Task>(STORAGE_KEYS.TASKS, INITIAL_TASKS);
+    const deletedTaskIds: string[] = JSON.parse(localStorage.getItem(DELETED_KEYS.TASKS) || '[]');
+
+    if (isGasActive(config.gasUrl)) {
+      try {
+        const result = await requestGas<GasListResponse<Record<string, unknown>>>({ action: 'listTasks' });
+        if (result && Array.isArray(result.data)) {
+          const gasData = result.data.map(row => ({
+            id: row.id as string,
+            name: row.name as string,
+            subject: row.subject as string,
+            progress: row.progress as any,
+            deadline: row.deadline as string,
+            url: row.url as string | undefined,
+            urls: row.url ? (row.url as string).split(',').map(s => s.trim()).filter(Boolean) : [],
+            attachmentName: row.attachmentName as string | undefined,
+            attachmentUrl: row.attachmentUrl as string | undefined,
+            driveFileUrl: (row.driveFileUrl as string) || (row.attachmentUrl as string),
+            driveFileIds: row.driveFileIds as string | undefined,
+            createdAt: row.createdAt as string,
+          })) as Task[];
+
+          const merged = mergeDataById(gasData, local, deletedTaskIds);
+          localStorage.setItem(STORAGE_KEYS.TASKS, JSON.stringify(merged));
+          return merged;
+        }
+      } catch (err) {
+        console.warn("GAS sync listTasks failed, returning cached:", err);
+      }
+    }
+
+    const filtered = local.filter(t => !deletedTaskIds.includes(t.id));
+    if (filtered.length !== local.length) {
+      localStorage.setItem(STORAGE_KEYS.TASKS, JSON.stringify(filtered));
+    }
+    return filtered;
+  },
+
+  createTask: async (
+    taskData: Omit<Task, 'id' | 'createdAt'>,
+    file?: { fileName: string; fileData: string }
+  ): Promise<Task> => {
+    const config = getAppConfig();
+    const newTask: Task = {
+      id: 't_' + Math.random().toString(36).substr(2, 9),
+      createdAt: new Date().toISOString(),
+      ...taskData
+    };
+
+    if (file) {
+      newTask.attachmentName = file.fileName;
+      newTask.attachmentUrl = `data:${getMimeType(file.fileName)};base64,${file.fileData}`;
+    }
+
+    const currentList = getFallbackData<Task>(STORAGE_KEYS.TASKS, INITIAL_TASKS);
+    const updated = [newTask, ...currentList];
+    localStorage.setItem(STORAGE_KEYS.TASKS, JSON.stringify(updated));
+
+    if (isGasActive(config.gasUrl)) {
+      try {
+        const payload: any = {
+          action: 'createTask',
+          id: newTask.id,
+          name: newTask.name,
+          subject: newTask.subject,
+          progress: newTask.progress,
+          deadline: newTask.deadline,
+          url: newTask.urls && newTask.urls.length > 0 ? newTask.urls.join(', ') : (newTask.url || ''),
+        };
+        if (file) {
+          payload.fileData = file.fileData;
+          payload.fileName = file.fileName;
+        }
+
+        await requestGas(payload);
+      } catch (err) {
+        console.warn("GAS task creation erred, logged locally:", err);
+      }
+    }
+
+    return newTask;
+  },
+
+  deleteTask: async (id: string): Promise<boolean> => {
+    const config = getAppConfig();
+
+    const currentTasks = getFallbackData<Task>(STORAGE_KEYS.TASKS, INITIAL_TASKS);
+    const taskToDelete = currentTasks.find(t => t.id === id);
+    const updatedTasks = currentTasks.filter(t => t.id !== id);
+    localStorage.setItem(STORAGE_KEYS.TASKS, JSON.stringify(updatedTasks));
+
+    const deletedIds: string[] = JSON.parse(localStorage.getItem(DELETED_KEYS.TASKS) || '[]');
+    if (!deletedIds.includes(id)) {
+      deletedIds.push(id);
+      localStorage.setItem(DELETED_KEYS.TASKS, JSON.stringify(deletedIds));
+    }
+
+    if (isGasActive(config.gasUrl)) {
+      try {
+        const payload: Record<string, unknown> = {
+          action: 'deleteTask',
+          id: id,
+        };
+        if (taskToDelete?.driveFileIds) {
+          payload.driveFileIds = taskToDelete.driveFileIds;
+        }
+        await requestGas(payload);
+      } catch (err) {
+        console.warn("GAS deleteTask failed, updated local cache only:", err);
+      }
+    }
+
+    return true;
   }
 };

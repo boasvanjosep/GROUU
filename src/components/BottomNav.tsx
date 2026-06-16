@@ -6,8 +6,8 @@
 import { LayoutDashboard, FolderArchive, PlusSquare } from 'lucide-react';
 
 interface BottomNavProps {
-  activeTab: 'dashboard' | 'archive' | 'quick-entry';
-  setActiveTab: (tab: 'dashboard' | 'archive' | 'quick-entry') => void;
+  activeTab: 'dashboard' | 'archive' | 'quick-entry' | 'tasks';
+  setActiveTab: (tab: 'dashboard' | 'archive' | 'quick-entry' | 'tasks') => void;
 }
 
 export function BottomNav({ activeTab, setActiveTab }: BottomNavProps) {
@@ -42,6 +42,20 @@ export function BottomNav({ activeTab, setActiveTab }: BottomNavProps) {
             <PlusSquare className="w-5 h-5" />
           </div>
           <span className="font-sans text-[10px] tracking-tight">Quick Entry</span>
+        </button>
+
+        {/* Tasks Button */}
+        <button
+          onClick={() => setActiveTab('tasks')}
+          aria-label="Tasks"
+          className={`flex flex-col items-center justify-center py-2 flex-1 transition-all duration-300 ${
+            activeTab === 'tasks'
+              ? 'text-[#B4B0FF] scale-105 filter drop-shadow-[0_0_8px_rgba(180,176,255,0.4)]'
+              : 'text-gray-500 hover:text-white'
+          }`}
+        >
+          <svg className="w-5 h-5 mb-0.5" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4 Z"/></svg>
+          <span className="font-sans text-[10px] tracking-tight">Tasks</span>
         </button>
 
         {/* Notes Archive button */}
