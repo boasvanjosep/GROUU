@@ -23,12 +23,16 @@ export function Tasks({ tasks, loading, onRefresh, onAddTask, onDeleteTask }: Ta
     subject: string;
     progress: TaskProgress;
     deadline: string;
+    time: string;
+    reminderMinutes: number;
     urls: string[];
   }>({
     name: '',
     subject: '',
     progress: 'Not Yet',
     deadline: '',
+    time: '',
+    reminderMinutes: 10,
     urls: [],
   });
   const [urlInput, setUrlInput] = useState('');
@@ -188,12 +192,14 @@ export function Tasks({ tasks, loading, onRefresh, onAddTask, onDeleteTask }: Ta
         subject: newTask.subject,
         progress: newTask.progress,
         deadline: newTask.deadline,
+        time: newTask.time,
+        reminderMinutes: newTask.reminderMinutes,
         urls: newTask.urls,
-      }, fileDataObj);
+      } as Omit<Task, 'id' | 'createdAt'>, fileDataObj);
 
       if (success) {
         setShowCreateModal(false);
-        setNewTask({ name: '', subject: '', progress: 'Not Yet', deadline: '', urls: [] });
+        setNewTask({ name: '', subject: '', progress: 'Not Yet', deadline: '', time: '', reminderMinutes: 10, urls: [] });
         setUrlInput('');
         setFileToUpload(null);
       }
@@ -317,7 +323,10 @@ export function Tasks({ tasks, loading, onRefresh, onAddTask, onDeleteTask }: Ta
 
                 <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-4">
                   <Calendar className="w-3.5 h-3.5" />
-                  <span>Deadline: {formatDate(task.deadline)}</span>
+                  <span>
+                    Deadline: {formatDate(task.deadline)} 
+                    {task.time ? ` at ${task.time}` : (task.deadline && task.deadline.includes('T') && task.deadline.length > 10 ? ` at ${new Date(task.deadline).toLocaleTimeString('id-ID', {hour: '2-digit', minute:'2-digit'})}` : '')}
+                  </span>
                 </div>
               </div>
 
@@ -389,7 +398,7 @@ export function Tasks({ tasks, loading, onRefresh, onAddTask, onDeleteTask }: Ta
                     {selectedTask.progress}
                   </span>
                   <span className="font-mono text-[10px] text-gray-500 tracking-wider font-semibold uppercase">
-                    Deadline: {formatDate(selectedTask.deadline)}
+                    Deadline: {formatDate(selectedTask.deadline)} {selectedTask.time ? ` at ${selectedTask.time}` : (selectedTask.deadline && selectedTask.deadline.includes('T') && selectedTask.deadline.length > 10 ? ` at ${new Date(selectedTask.deadline).toLocaleTimeString('id-ID', {hour: '2-digit', minute:'2-digit'})}` : '')}
                   </span>
                 </div>
                 <h3 className="font-sans text-lg font-bold text-white tracking-tight leading-snug">
@@ -517,15 +526,43 @@ export function Tasks({ tasks, loading, onRefresh, onAddTask, onDeleteTask }: Ta
                 </select>
               </div>
 
+              <div className="flex gap-4">
+                <div className="flex-1 space-y-1">
+                  <label className="text-xs text-gray-400 font-sans">Deadline</label>
+                  <input
+                    type="date"
+                    required
+                    value={newTask.deadline}
+                    onChange={e => setNewTask({...newTask, deadline: e.target.value})}
+                    className="w-full min-h-[44px] bg-[#0A0A0B] border border-[#232326] rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-[#B4B0FF] [color-scheme:dark]"
+                  />
+                </div>
+                <div className="flex-1 space-y-1">
+                  <label className="text-xs text-gray-400 font-sans">Time (Optional)</label>
+                  <input
+                    type="time"
+                    value={newTask.time}
+                    onChange={e => setNewTask({...newTask, time: e.target.value})}
+                    className="w-full min-h-[44px] bg-[#0A0A0B] border border-[#232326] rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-[#B4B0FF] [color-scheme:dark]"
+                  />
+                </div>
+              </div>
+
               <div className="space-y-1">
-                <label className="text-xs text-gray-400 font-sans">Deadline</label>
-                <input
-                  type="date"
-                  required
-                  value={newTask.deadline}
-                  onChange={e => setNewTask({...newTask, deadline: e.target.value})}
-                  className="w-full min-h-[44px] bg-[#0A0A0B] border border-[#232326] rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-[#B4B0FF] [color-scheme:dark]"
-                />
+                <label className="text-xs text-gray-400 font-sans">Notify Reminder (Calendar)</label>
+                <select
+                  value={newTask.reminderMinutes}
+                  onChange={e => setNewTask({...newTask, reminderMinutes: Number(e.target.value)})}
+                  className="w-full min-h-[44px] bg-[#0A0A0B] border border-[#232326] rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-[#B4B0FF] appearance-none"
+                >
+                  <option value={0}>At time of event</option>
+                  <option value={5}>5 minutes before</option>
+                  <option value={10}>10 minutes before</option>
+                  <option value={30}>30 minutes before</option>
+                  <option value={60}>1 hour before</option>
+                  <option value={1440}>1 day before</option>
+                  <option value={-1}>No reminder</option>
+                </select>
               </div>
 
               <div className="space-y-1">

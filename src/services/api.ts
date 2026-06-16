@@ -602,6 +602,8 @@ export const apiService = {
           subject: newTask.subject,
           progress: newTask.progress,
           deadline: newTask.deadline,
+          time: newTask.time || '',
+          reminderMinutes: newTask.reminderMinutes !== undefined ? newTask.reminderMinutes : 10,
           url: newTask.urls && newTask.urls.length > 0 ? newTask.urls.join(', ') : (newTask.url || ''),
         };
         if (file) {
@@ -609,7 +611,15 @@ export const apiService = {
           payload.fileName = file.fileName;
         }
 
-        await requestGas(payload);
+        const res = await requestGas<{data: {driveFileUrl: string, driveFileIds: string}}>(payload);
+        if (res && res.data) {
+          newTask.driveFileUrl = res.data.driveFileUrl;
+          newTask.driveFileIds = res.data.driveFileIds;
+          
+          const currentList2 = getFallbackData<Task>(STORAGE_KEYS.TASKS, INITIAL_TASKS);
+          const updated2 = currentList2.map(t => t.id === newTask.id ? newTask : t);
+          localStorage.setItem(STORAGE_KEYS.TASKS, JSON.stringify(updated2));
+        }
       } catch (err) {
         console.warn("GAS task creation erred, logged locally:", err);
       }

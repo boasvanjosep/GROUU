@@ -47,6 +47,8 @@ export interface Task {
   subject: string;
   progress: TaskProgress;
   deadline: string; // ISO date string or YYYY-MM-DD
+  time?: string;
+  reminderMinutes?: number;
   url?: string;
   urls?: string[];
   attachmentName?: string;
