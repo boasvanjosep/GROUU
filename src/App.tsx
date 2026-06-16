@@ -257,7 +257,10 @@ export default function App() {
       </header>
 
       {/* Main Content Area Canvas Container */}
-      <main className="flex-1 min-w-0 max-w-7xl mx-auto w-full px-4 md:px-10 py-6 pb-28 md:pb-8 overflow-y-auto relative z-10">
+      <main
+        className="flex-1 min-w-0 max-w-7xl mx-auto w-full px-4 md:px-10 py-6 overflow-y-auto relative z-10"
+        style={{ paddingBottom: 'max(7rem, calc(5rem + env(safe-area-inset-bottom, 0px)))' }}
+      >
         {activeTab === 'dashboard' && (
           <Dashboard
             onNavigate={handleDashboardShortcutNavigate}

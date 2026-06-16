@@ -3,8 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useState, useMemo, useCallback } from 'react';
-import { Search, RotateCw, ExternalLink, Paperclip, Grid, List, Tag, AlertCircle, PlusCircle, X, Trash2 } from 'lucide-react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
+import { Search, RefreshCw, ExternalLink, Paperclip, Grid, List, AlertCircle, PlusCircle, X, Trash2 } from 'lucide-react';
 import { Note } from '../types';
 
 interface ArchiveProps {
@@ -20,6 +20,21 @@ export function Archive({ notes, loading, onRefresh, onNavigateToCreate, onDelet
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [selectedNote, setSelectedNote] = useState<Note | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Auto-fetch on mount — ensures fresh data every time the Archive tab is opened
+  useEffect(() => {
+    onRefresh();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Manual refresh handler with local loading state
+  const handleRefresh = useCallback(async () => {
+    setIsRefreshing(true);
+    await Promise.resolve(onRefresh());
+    // Give a brief visual confirmation even if onRefresh resolves synchronously
+    setTimeout(() => setIsRefreshing(false), 800);
+  }, [onRefresh]);
 
   // Helper: open attachment URL safely (data: URIs are blocked by browsers in new tabs)
   const openAttachment = useCallback((url: string) => {
@@ -72,8 +87,11 @@ export function Archive({ notes, loading, onRefresh, onNavigateToCreate, onDelet
     }
   };
 
+  const isBusy = loading || isRefreshing;
+
   return (
-    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
+    // Safe-area bottom padding ensures content clears the iOS Home Indicator & Bottom Nav
+    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300 pb-safe-or-8">
       {/* Title Header with action elements */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-[#232326] pb-4">
         <div>
@@ -85,18 +103,20 @@ export function Archive({ notes, loading, onRefresh, onNavigateToCreate, onDelet
 
         {/* Header tools */}
         <div className="flex items-center gap-2 self-stretch sm:self-auto">
-          {/* Refresh Button */}
+          {/* Refresh Button — visible always, with loading spinner */}
           <button
-            onClick={onRefresh}
-            disabled={loading}
-            className="p-2 bg-[#1C1C1E] hover:bg-[#1C1C1E]/80 text-gray-400 hover:text-white rounded-xl border border-[#232326] transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
-            title="Refresh notes repository"
+            onClick={handleRefresh}
+            disabled={isBusy}
+            className="min-h-[44px] px-3 bg-[#1C1C1E] hover:bg-[#232326] text-gray-400 hover:text-white rounded-xl border border-[#232326] transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 active:scale-95"
+            title="Sync notes from cloud"
           >
-            <RotateCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-            <span className="font-sans text-xs font-semibold hidden md:inline">Refresh Data</span>
+            <RefreshCw className={`w-4 h-4 ${isBusy ? 'animate-spin text-[#4FD1C5]' : ''}`} />
+            <span className="font-sans text-xs font-semibold">
+              {isBusy ? 'Syncing…' : 'Refresh'}
+            </span>
           </button>
 
-          {/* Grid Toggle */}
+          {/* Grid/List Toggle — desktop only */}
           <div className="hidden md:flex bg-[#0A0A0B] rounded-lg border border-[#232326] p-1 gap-1">
             <button
               onClick={() => setViewMode('grid')}
@@ -122,7 +142,7 @@ export function Archive({ notes, loading, onRefresh, onNavigateToCreate, onDelet
       <div className="flex flex-col md:flex-row gap-3">
         {/* Search Field */}
         <div className="relative flex-1">
-          <Search className="w-4 h-4 text-gray-500 absolute left-3 top-1/2 -translate-y-1/2" />
+          <Search className="w-4 h-4 text-gray-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
           <input
             type="text"
             value={search}
@@ -136,7 +156,7 @@ export function Archive({ notes, loading, onRefresh, onNavigateToCreate, onDelet
         <div className="flex items-center gap-1.5 overflow-x-auto pb-1 select-none no-scrollbar">
           <button
             onClick={() => setSelectedTag(null)}
-            className={`px-3 py-1.5 rounded-full font-sans text-[11px] tracking-wide uppercase transition-all whitespace-nowrap cursor-pointer ${
+            className={`px-3 py-1.5 rounded-full font-sans text-[11px] tracking-wide uppercase transition-all whitespace-nowrap cursor-pointer min-h-[36px] ${
               !selectedTag
                 ? 'bg-[#B4B0FF] text-[#0A0A0B] font-bold border border-[#B4B0FF]/50'
                 : 'bg-[#1C1C1E] text-gray-400 border border-[#232326] hover:border-gray-600'
@@ -148,7 +168,7 @@ export function Archive({ notes, loading, onRefresh, onNavigateToCreate, onDelet
             <button
               key={tag}
               onClick={() => setSelectedTag(tag)}
-              className={`px-3 py-1.5 rounded-full font-sans text-[11px] tracking-wide uppercase transition-all whitespace-nowrap cursor-pointer ${
+              className={`px-3 py-1.5 rounded-full font-sans text-[11px] tracking-wide uppercase transition-all whitespace-nowrap cursor-pointer min-h-[36px] ${
                 selectedTag === tag
                   ? 'bg-[#B4B0FF] text-[#0A0A0B] font-bold border border-[#B4B0FF]/50'
                   : 'bg-[#1C1C1E] text-gray-400 border border-[#232326] hover:border-gray-600'
@@ -161,8 +181,8 @@ export function Archive({ notes, loading, onRefresh, onNavigateToCreate, onDelet
       </div>
 
       {/* Loading Skeleton Mode */}
-      {loading ? (
-        <div className={`grid gap-4 ${viewMode === 'grid' ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3' : 'grid-cols-1'}`}>
+      {isBusy ? (
+        <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
           {[1, 2, 3].map(i => (
             <div key={i} className="bg-[#1C1C1E] rounded-2xl border border-[#232326] p-5 space-y-4 animate-pulse">
               <div className="flex justify-between items-center">
@@ -190,26 +210,28 @@ export function Archive({ notes, loading, onRefresh, onNavigateToCreate, onDelet
           </p>
           <button
             onClick={onNavigateToCreate}
-            className="px-4 py-2 bg-[#B4B0FF] hover:bg-[#B4B0FF]/90 text-[#0A0A0B] font-sans text-xs font-semibold rounded-xl flex items-center justify-center gap-1.5 shadow-md shadow-[#B4B0FF]/15 transition-all"
+            className="min-h-[44px] px-4 py-2 bg-[#B4B0FF] hover:bg-[#B4B0FF]/90 text-[#0A0A0B] font-sans text-xs font-semibold rounded-xl flex items-center justify-center gap-1.5 shadow-md shadow-[#B4B0FF]/15 transition-all"
           >
             <PlusCircle className="w-4 h-4" /> Create Note Draft
           </button>
         </div>
       ) : (
-        /* Notes Listing Multi-columns Layout */
-        <div className={`grid gap-4 ${viewMode === 'grid' ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3' : 'grid-cols-1'}`}>
+        /* Notes Listing — responsive grid, z-20 so cards sit above any nav ghost layers */
+        <div className={`grid gap-4 relative z-20 ${viewMode === 'grid' ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3' : 'grid-cols-1'}`}>
           {filteredNotes.map(note => (
             <article
               key={note.id}
               onClick={() => setSelectedNote(note)}
-              className="bg-[#1C1C1E] rounded-2xl border border-[#232326] p-5 hover:border-[#B4B0FF]/40 transition-all duration-300 flex flex-col justify-between group relative overflow-hidden h-full min-h-[190px] cursor-pointer"
+              // NOTE: overflow-hidden removed intentionally — it was clipping touch events
+              // on attachment links in Mobile Safari. Cards use rounded-2xl without clip.
+              className="bg-[#1C1C1E] rounded-2xl border border-[#232326] p-5 hover:border-[#B4B0FF]/40 transition-all duration-300 flex flex-col justify-between group relative h-full min-h-[190px] cursor-pointer"
             >
-              <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-white/5 via-transparent" />
-              
+              <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-white/5 via-transparent rounded-t-2xl" />
+
               <div>
                 {/* Meta details Header */}
                 <div className="flex justify-between items-start mb-3">
-                  <div className="flex gap-2 items-center">
+                  <div className="flex gap-2 items-center flex-wrap">
                     <span className="font-mono text-[10px] text-gray-500 tracking-wider font-semibold uppercase">
                       {formatDate(note.createdAt)}
                     </span>
@@ -227,7 +249,7 @@ export function Archive({ notes, loading, onRefresh, onNavigateToCreate, onDelet
                           await onDeleteNote(note.id);
                         }
                       }}
-                      className="p-1 text-gray-500 hover:text-red-400 bg-transparent rounded transition-colors z-10 relative"
+                      className="min-h-[44px] min-w-[44px] flex items-center justify-center text-gray-500 hover:text-red-400 bg-transparent rounded-xl transition-colors z-10 relative -mr-2 -mt-1"
                       title="Delete Note"
                     >
                       <Trash2 className="w-4 h-4" />
@@ -246,9 +268,9 @@ export function Archive({ notes, loading, onRefresh, onNavigateToCreate, onDelet
                 </p>
               </div>
 
-              {/* Extra Attachments / Embedded Links footer */}
+              {/* Attachments / Links footer — z-10 + stopPropagation so taps register on iOS */}
               {(note.url || note.attachmentName || (note.urls && note.urls.length > 0) || (note.attachments && note.attachments.length > 0)) && (
-                <div className="pt-3 border-t border-[#232326] flex flex-col gap-1.5 mt-2">
+                <div className="pt-3 border-t border-[#232326] flex flex-col gap-2 mt-2 relative z-10">
                   {/* Note URL */}
                   {note.url && (
                     <a
@@ -256,7 +278,7 @@ export function Archive({ notes, loading, onRefresh, onNavigateToCreate, onDelet
                       target="_blank"
                       rel="noopener noreferrer"
                       onClick={(e) => e.stopPropagation()}
-                      className="inline-flex items-center gap-1.5 text-xs text-[#4FD1C5] hover:text-[#4FD1C5]/85 transition-colors w-fit"
+                      className="inline-flex items-center gap-2 text-xs text-[#4FD1C5] hover:text-[#4FD1C5]/85 transition-colors min-h-[44px] px-1 -mx-1"
                     >
                       <ExternalLink className="w-3.5 h-3.5 shrink-0" />
                       <span className="font-sans text-[11px] truncate max-w-[170px] md:max-w-[210px]">{note.url}</span>
@@ -269,54 +291,44 @@ export function Archive({ notes, loading, onRefresh, onNavigateToCreate, onDelet
                       target="_blank"
                       rel="noopener noreferrer"
                       onClick={(e) => e.stopPropagation()}
-                      className="inline-flex items-center gap-1.5 text-xs text-[#4FD1C5] hover:text-[#4FD1C5]/85 transition-colors w-fit"
+                      className="inline-flex items-center gap-2 text-xs text-[#4FD1C5] hover:text-[#4FD1C5]/85 transition-colors min-h-[44px] px-1 -mx-1"
                     >
                       <ExternalLink className="w-3.5 h-3.5 shrink-0" />
                       <span className="font-sans text-[11px] truncate max-w-[170px] md:max-w-[210px]">{u}</span>
                     </a>
                   ))}
 
-                  {/* Attachment metadata */}
+                  {/* Attachment chips */}
                   {note.attachmentName && (
-                    <a
-                      href={note.attachmentUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
+                    <button
+                      type="button"
                       onClick={(e) => {
                         e.stopPropagation();
-                        if (note.attachmentUrl?.startsWith('data:')) {
-                          e.preventDefault();
-                          openAttachment(note.attachmentUrl!);
-                        }
+                        if (note.attachmentUrl) openAttachment(note.attachmentUrl);
                       }}
-                      className="inline-flex items-center gap-1.5 text-xs text-gray-300 hover:text-[#B4B0FF] bg-[#0A0A0B]/50 border border-[#232326] px-2.5 py-1 rounded-lg w-fit transition-colors cursor-pointer"
+                      className="inline-flex items-center gap-2 text-xs text-gray-300 hover:text-[#B4B0FF] bg-[#0A0A0B]/70 border border-[#232326] px-3 py-2.5 rounded-xl w-full transition-colors cursor-pointer min-h-[44px] active:scale-[0.98]"
                     >
-                      <Paperclip className="w-3 h-3 text-gray-500" />
-                      <span className="font-mono text-[10px] tracking-wide truncate max-w-[150px] md:max-w-[190px]">
+                      <Paperclip className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                      <span className="font-mono text-[10px] tracking-wide truncate">
                         {note.attachmentName}
                       </span>
-                    </a>
+                    </button>
                   )}
                   {note.attachments?.map((att, i) => (
-                    <a
+                    <button
                       key={`att-${i}`}
-                      href={att.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
+                      type="button"
                       onClick={(e) => {
                         e.stopPropagation();
-                        if (att.url.startsWith('data:')) {
-                          e.preventDefault();
-                          openAttachment(att.url);
-                        }
+                        openAttachment(att.url);
                       }}
-                      className="inline-flex items-center gap-1.5 text-xs text-gray-300 hover:text-[#B4B0FF] bg-[#0A0A0B]/50 border border-[#232326] px-2.5 py-1 rounded-lg w-fit transition-colors cursor-pointer"
+                      className="inline-flex items-center gap-2 text-xs text-gray-300 hover:text-[#B4B0FF] bg-[#0A0A0B]/70 border border-[#232326] px-3 py-2.5 rounded-xl w-full transition-colors cursor-pointer min-h-[44px] active:scale-[0.98]"
                     >
-                      <Paperclip className="w-3 h-3 text-gray-500" />
-                      <span className="font-mono text-[10px] tracking-wide truncate max-w-[150px] md:max-w-[190px]">
+                      <Paperclip className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                      <span className="font-mono text-[10px] tracking-wide truncate">
                         {att.name}
                       </span>
-                    </a>
+                    </button>
                   ))}
                 </div>
               )}
@@ -325,15 +337,30 @@ export function Archive({ notes, loading, onRefresh, onNavigateToCreate, onDelet
         </div>
       )}
 
-      {/* Note Detail Modal */}
+      {/* Note Detail Modal — full-height safe on iOS with env(safe-area-inset-bottom) */}
       {selectedNote && (
-        <div className="fixed inset-0 bg-[#0A0A0B]/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
-          <div className="w-full max-w-2xl bg-[#1C1C1E] border border-[#232326] rounded-2xl p-6 shadow-2xl relative overflow-hidden flex flex-col max-h-[85vh]">
-            <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-[#B4B0FF] to-[#4FD1C5]" />
-            
+        <div
+          className="fixed inset-0 bg-[#0A0A0B]/85 backdrop-blur-md z-[60] flex items-end sm:items-center justify-center p-0 sm:p-4"
+          onClick={() => setSelectedNote(null)}
+        >
+          <div
+            className="w-full sm:max-w-2xl bg-[#1C1C1E] border border-[#232326] sm:rounded-2xl rounded-t-2xl shadow-2xl relative flex flex-col"
+            style={{
+              maxHeight: 'calc(92dvh - env(safe-area-inset-bottom, 0px))',
+              paddingBottom: 'env(safe-area-inset-bottom, 0px)'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-[#B4B0FF] to-[#4FD1C5] rounded-t-2xl" />
+
+            {/* Drag handle pill (mobile UX) */}
+            <div className="flex justify-center pt-3 pb-1 md:hidden">
+              <div className="w-10 h-1 bg-gray-600 rounded-full" />
+            </div>
+
             {/* Header */}
-            <div className="flex justify-between items-start gap-4 mb-4 pb-4 border-b border-[#232326]">
-              <div>
+            <div className="flex justify-between items-start gap-4 px-6 pb-4 pt-3 border-b border-[#232326]">
+              <div className="flex-1 min-w-0">
                 <div className="flex flex-wrap items-center gap-2 mb-1.5">
                   <span className="font-mono text-[10px] text-gray-500 tracking-wider font-semibold uppercase">
                     {formatDate(selectedNote.createdAt)}
@@ -348,7 +375,7 @@ export function Archive({ notes, loading, onRefresh, onNavigateToCreate, onDelet
                   {selectedNote.title || "Untitled Note"}
                 </h3>
               </div>
-              <div className="flex gap-2 items-center">
+              <div className="flex gap-2 items-center shrink-0">
                 {onDeleteNote && (
                   <button
                     onClick={async () => {
@@ -357,7 +384,7 @@ export function Archive({ notes, loading, onRefresh, onNavigateToCreate, onDelet
                         if (success) setSelectedNote(null);
                       }
                     }}
-                    className="p-1 px-2 text-red-400 hover:text-red-300 bg-[#0A0A0B] rounded-lg border border-[#232326] hover:border-red-900/50 transition-all cursor-pointer flex items-center justify-center"
+                    className="min-h-[44px] min-w-[44px] flex items-center justify-center text-red-400 hover:text-red-300 bg-[#0A0A0B] rounded-xl border border-[#232326] hover:border-red-900/50 transition-all cursor-pointer"
                     title="Delete Note"
                   >
                     <Trash2 className="w-4 h-4" />
@@ -365,7 +392,7 @@ export function Archive({ notes, loading, onRefresh, onNavigateToCreate, onDelet
                 )}
                 <button
                   onClick={() => setSelectedNote(null)}
-                  className="p-1 px-2 text-gray-400 hover:text-white bg-[#0A0A0B] rounded-lg border border-[#232326] hover:border-gray-600 transition-all cursor-pointer flex items-center justify-center"
+                  className="min-h-[44px] min-w-[44px] flex items-center justify-center text-gray-400 hover:text-white bg-[#0A0A0B] rounded-xl border border-[#232326] hover:border-gray-600 transition-all cursor-pointer"
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -373,21 +400,21 @@ export function Archive({ notes, loading, onRefresh, onNavigateToCreate, onDelet
             </div>
 
             {/* Content (Scrollable) */}
-            <div className="flex-1 overflow-y-auto space-y-4 pr-1 scrollbar-thin scrollbar-thumb-gray-800">
+            <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4 scrollbar-thin scrollbar-thumb-gray-800">
               <p className="font-sans text-xs text-gray-300 leading-relaxed whitespace-pre-line">
                 {selectedNote.content}
               </p>
             </div>
 
             {/* Footer with links / attachments */}
-            <div className="pt-4 border-t border-[#232326] flex flex-col sm:flex-row sm:items-center justify-between gap-3 mt-4">
+            <div className="px-6 pt-4 pb-5 border-t border-[#232326] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div className="flex flex-wrap gap-2">
                 {selectedNote.url && (
                   <a
                     href={selectedNote.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 text-xs text-[#4FD1C5] hover:text-[#4FD1C5]/85 transition-colors bg-[#0A0A0B]/50 border border-[#232326] px-3 py-1.5 rounded-lg"
+                    className="inline-flex items-center gap-1.5 text-xs text-[#4FD1C5] hover:text-[#4FD1C5]/85 transition-colors bg-[#0A0A0B]/50 border border-[#232326] px-3 py-2.5 rounded-xl min-h-[44px]"
                   >
                     <ExternalLink className="w-3.5 h-3.5" />
                     <span className="font-sans text-[11px] truncate max-w-[180px]">{selectedNote.url}</span>
@@ -399,7 +426,7 @@ export function Archive({ notes, loading, onRefresh, onNavigateToCreate, onDelet
                     href={u}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 text-xs text-[#4FD1C5] hover:text-[#4FD1C5]/85 transition-colors bg-[#0A0A0B]/50 border border-[#232326] px-3 py-1.5 rounded-lg"
+                    className="inline-flex items-center gap-1.5 text-xs text-[#4FD1C5] hover:text-[#4FD1C5]/85 transition-colors bg-[#0A0A0B]/50 border border-[#232326] px-3 py-2.5 rounded-xl min-h-[44px]"
                   >
                     <ExternalLink className="w-3.5 h-3.5" />
                     <span className="font-sans text-[11px] truncate max-w-[180px]">{u}</span>
@@ -407,49 +434,37 @@ export function Archive({ notes, loading, onRefresh, onNavigateToCreate, onDelet
                 ))}
 
                 {selectedNote.attachmentName && (
-                  <a
-                    href={selectedNote.attachmentUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={(e) => {
-                      if (selectedNote.attachmentUrl?.startsWith('data:')) {
-                        e.preventDefault();
-                        openAttachment(selectedNote.attachmentUrl!);
-                      }
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (selectedNote.attachmentUrl) openAttachment(selectedNote.attachmentUrl);
                     }}
-                    className="inline-flex items-center gap-1.5 text-xs text-gray-300 hover:text-[#B4B0FF] bg-[#0A0A0B]/50 border border-[#232326] px-3 py-1.5 rounded-lg transition-colors cursor-pointer"
+                    className="inline-flex items-center gap-1.5 text-xs text-gray-300 hover:text-[#B4B0FF] bg-[#0A0A0B]/50 border border-[#232326] px-3 py-2.5 rounded-xl transition-colors cursor-pointer min-h-[44px] active:scale-[0.98]"
                   >
-                    <Paperclip className="w-3.5 h-3.5 text-gray-500" />
+                    <Paperclip className="w-3.5 h-3.5 text-gray-400" />
                     <span className="font-mono text-[10px] tracking-wide truncate max-w-[180px]">
                       {selectedNote.attachmentName}
                     </span>
-                  </a>
+                  </button>
                 )}
                 {selectedNote.attachments?.map((att, i) => (
-                  <a
+                  <button
                     key={`modal-att-${i}`}
-                    href={att.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={(e) => {
-                      if (att.url.startsWith('data:')) {
-                        e.preventDefault();
-                        openAttachment(att.url);
-                      }
-                    }}
-                    className="inline-flex items-center gap-1.5 text-xs text-gray-300 hover:text-[#B4B0FF] bg-[#0A0A0B]/50 border border-[#232326] px-3 py-1.5 rounded-lg transition-colors cursor-pointer"
+                    type="button"
+                    onClick={() => openAttachment(att.url)}
+                    className="inline-flex items-center gap-1.5 text-xs text-gray-300 hover:text-[#B4B0FF] bg-[#0A0A0B]/50 border border-[#232326] px-3 py-2.5 rounded-xl transition-colors cursor-pointer min-h-[44px] active:scale-[0.98]"
                   >
-                    <Paperclip className="w-3.5 h-3.5 text-gray-500" />
+                    <Paperclip className="w-3.5 h-3.5 text-gray-400" />
                     <span className="font-mono text-[10px] tracking-wide truncate max-w-[180px]">
                       {att.name}
                     </span>
-                  </a>
+                  </button>
                 ))}
               </div>
 
               <button
                 onClick={() => setSelectedNote(null)}
-                className="px-4 py-2 bg-[#B4B0FF] hover:bg-[#B4B0FF]/90 text-[#0A0A0B] font-sans text-xs font-semibold rounded-xl transition-all cursor-pointer"
+                className="w-full sm:w-auto min-h-[44px] px-5 py-2 bg-[#B4B0FF] hover:bg-[#B4B0FF]/90 text-[#0A0A0B] font-sans text-xs font-semibold rounded-xl transition-all cursor-pointer active:scale-[0.98]"
               >
                 Close Note
               </button>
