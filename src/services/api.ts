@@ -215,15 +215,34 @@ function mergeDataById<T extends { id: string }>(gasData: T[], localData: T[], d
   const deleted = new Set(deletedIds);
   const gasIds = new Set(gasData.map(item => item.id));
   
-  // Start with GAS data (source of truth)
-  const merged = gasData.filter(item => !deleted.has(item.id));
+  // Start with GAS data (source of truth), but preserve local unique fields (like attachmentUrl)
+  const merged = gasData.filter(item => !deleted.has(item.id)).map(gasItem => {
+    const localItem = localData.find(l => l.id === gasItem.id);
+    if (localItem) {
+      const mergedItem = { ...localItem };
+      for (const key in gasItem) {
+        if (gasItem[key] !== undefined && gasItem[key] !== null && gasItem[key] !== '') {
+          mergedItem[key] = gasItem[key];
+        }
+      }
+      return mergedItem;
+    }
+    return gasItem;
+  });
   
-  // Keep local items that haven't been synced to GAS yet
+  // Keep local items that haven't been synced to GAS yet.
+  // Drop them if they look like they were previously synced but are now missing from GAS (deleted remotely).
   for (const item of localData) {
     if (!gasIds.has(item.id) && !deleted.has(item.id)) {
-      merged.push(item);
+      const ageHours = (item as any).createdAt ? (Date.now() - new Date((item as any).createdAt).getTime()) / 3600000 : 0;
+      const hasSyncedBefore = !!((item as any).driveFileUrl || (item as any).driveFileIds || ageHours > 1);
+      
+      if (!hasSyncedBefore) {
+        merged.push(item);
+      }
     }
   }
+  
   return merged;
 }
 
