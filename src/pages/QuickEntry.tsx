@@ -125,6 +125,8 @@ export function QuickEntry({ initialSubtab = 'expense', onAddExpense, onAddActiv
   const [activityDate, setActivityDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [activityTime, setActivityTime] = useState('');
   const [activityEndTime, setActivityEndTime] = useState('');
+  const [activityIsAllDay, setActivityIsAllDay] = useState(false);
+  const [activityReminderMinutes, setActivityReminderMinutes] = useState<number>(10);
   const [activityLocation, setActivityLocation] = useState('');
   const [activityNotes, setActivityNotes] = useState('');
 
@@ -134,7 +136,7 @@ export function QuickEntry({ initialSubtab = 'expense', onAddExpense, onAddActiv
       alert("Masukkan nama kegiatan/aktivitas!");
       return;
     }
-    if (!activityDate || !activityTime) {
+    if (!activityDate || (!activityIsAllDay && !activityTime)) {
       alert("Silakan tentukan tanggal dan waktu kegiatan!");
       return;
     }
@@ -145,6 +147,8 @@ export function QuickEntry({ initialSubtab = 'expense', onAddExpense, onAddActiv
       date: activityDate,
       time: activityTime,
       endTime: activityEndTime || undefined,
+      isAllDay: activityIsAllDay,
+      reminderMinutes: activityReminderMinutes,
       location: activityLocation,
       notes: activityNotes,
     });
@@ -154,6 +158,8 @@ export function QuickEntry({ initialSubtab = 'expense', onAddExpense, onAddActiv
       setActivityDate(new Date().toISOString().split('T')[0]);
       setActivityTime('');
       setActivityEndTime('');
+      setActivityIsAllDay(false);
+      setActivityReminderMinutes(10);
       setActivityLocation('');
       setActivityNotes('');
     }
@@ -505,7 +511,7 @@ export function QuickEntry({ initialSubtab = 'expense', onAddExpense, onAddActiv
             </div>
 
             {/* Date & Time Row */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className={`grid grid-cols-1 ${activityIsAllDay ? 'sm:grid-cols-1' : 'sm:grid-cols-3'} gap-4`}>
               {/* Date */}
               <div className="flex flex-col space-y-1">
                 <label className="font-sans text-xs font-medium text-gray-400">Tanggal Jadwal</label>
@@ -518,25 +524,74 @@ export function QuickEntry({ initialSubtab = 'expense', onAddExpense, onAddActiv
               </div>
 
               {/* Time Start */}
-              <div className="flex flex-col space-y-1">
-                <label className="font-sans text-xs font-medium text-gray-400">Jam Mulai</label>
-                <input
-                  type="time"
-                  value={activityTime}
-                  onChange={(e) => setActivityTime(e.target.value)}
-                  className="w-full bg-[#0A0A0B] border border-[#232326] rounded-xl px-4 py-3 text-xs text-white focus:outline-none focus:border-[#4FD1C5]"
-                />
-              </div>
+              {!activityIsAllDay && (
+                <div className="flex flex-col space-y-1 animate-in fade-in duration-200">
+                  <label className="font-sans text-xs font-medium text-gray-400">Jam Mulai</label>
+                  <input
+                    type="time"
+                    value={activityTime}
+                    onChange={(e) => setActivityTime(e.target.value)}
+                    className="w-full bg-[#0A0A0B] border border-[#232326] rounded-xl px-4 py-3 text-xs text-white focus:outline-none focus:border-[#4FD1C5]"
+                  />
+                </div>
+              )}
 
               {/* Time End */}
+              {!activityIsAllDay && (
+                <div className="flex flex-col space-y-1 animate-in fade-in duration-200">
+                  <label className="font-sans text-xs font-medium text-gray-400">Jam Selesai</label>
+                  <input
+                    type="time"
+                    value={activityEndTime}
+                    onChange={(e) => setActivityEndTime(e.target.value)}
+                    className="w-full bg-[#0A0A0B] border border-[#232326] rounded-xl px-4 py-3 text-xs text-white focus:outline-none focus:border-[#4FD1C5]"
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* Options Row: All Day & Reminder */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* All Day Toggle */}
               <div className="flex flex-col space-y-1">
-                <label className="font-sans text-xs font-medium text-gray-400">Jam Selesai</label>
-                <input
-                  type="time"
-                  value={activityEndTime}
-                  onChange={(e) => setActivityEndTime(e.target.value)}
-                  className="w-full bg-[#0A0A0B] border border-[#232326] rounded-xl px-4 py-3 text-xs text-white focus:outline-none focus:border-[#4FD1C5]"
-                />
+                <label className="font-sans text-xs font-medium text-gray-400">Tipe Acara</label>
+                <div 
+                  className="flex items-center h-[42px] space-x-3 bg-[#0A0A0B] border border-[#232326] rounded-xl px-4 w-full cursor-pointer hover:border-[#4FD1C5]/50 transition-colors"
+                  onClick={() => setActivityIsAllDay(!activityIsAllDay)}
+                >
+                  <label htmlFor="allDayToggle" className="relative inline-flex items-center cursor-pointer pointer-events-none">
+                    <input 
+                      type="checkbox" 
+                      id="allDayToggle" 
+                      className="sr-only peer"
+                      checked={activityIsAllDay}
+                      readOnly
+                    />
+                    <div className="w-9 h-5 bg-[#232326] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-gray-400 after:border-gray-400 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#4FD1C5] peer-checked:after:bg-[#0A0A0B] peer-checked:after:border-[#0A0A0B]"></div>
+                  </label>
+                  <span className="font-sans text-xs font-medium text-white select-none">
+                    Seharian (All Day)
+                  </span>
+                </div>
+              </div>
+
+              {/* Reminder Dropdown */}
+              <div className="flex flex-col space-y-1">
+                <label className="font-sans text-xs font-medium text-gray-400">Pengingat Notifikasi</label>
+                <select
+                  value={activityReminderMinutes}
+                  onChange={(e) => setActivityReminderMinutes(Number(e.target.value))}
+                  className="w-full h-[42px] bg-[#0A0A0B] border border-[#232326] rounded-xl px-4 text-xs text-white focus:outline-none focus:border-[#4FD1C5] cursor-pointer appearance-none"
+                  style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' fill=\'none\' viewBox=\'0 0 24 24\' stroke=\'%236B7280\'%3E%3Cpath stroke-linecap=\'round\' stroke-linejoin=\'round\' stroke-width=\'2\' d=\'M19 9l-7 7-7-7\'%3E%3C/path%3E%3C/svg%3E")', backgroundPosition: 'right 1rem center', backgroundSize: '1rem', backgroundRepeat: 'no-repeat' }}
+                >
+                  <option value={0} className="bg-[#1C1C1E]">Tepat saat acara mulai</option>
+                  <option value={5} className="bg-[#1C1C1E]">5 menit sebelum</option>
+                  <option value={10} className="bg-[#1C1C1E]">10 menit sebelum (Default)</option>
+                  <option value={15} className="bg-[#1C1C1E]">15 menit sebelum</option>
+                  <option value={30} className="bg-[#1C1C1E]">30 menit sebelum</option>
+                  <option value={60} className="bg-[#1C1C1E]">1 jam sebelum</option>
+                  <option value={1440} className="bg-[#1C1C1E]">1 hari sebelum</option>
+                </select>
               </div>
             </div>
 

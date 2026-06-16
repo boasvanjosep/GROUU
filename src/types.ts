@@ -32,6 +32,8 @@ export interface Activity {
   date: string;
   time: string;
   endTime?: string;
+  isAllDay?: boolean;
+  reminderMinutes?: number;
   location: string;
   notes?: string;
   createdAt: string;

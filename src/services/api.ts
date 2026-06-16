@@ -464,6 +464,8 @@ export const apiService = {
           date: newActivity.date,
           time: newActivity.time,
           endTime: newActivity.endTime || '',
+          isAllDay: newActivity.isAllDay,
+          reminderMinutes: newActivity.reminderMinutes,
           location: newActivity.location,
           notes: newActivity.notes || ''
         };
