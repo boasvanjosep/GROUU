@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useState, useMemo, useCallback, useEffect } from 'react';
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { Search, RefreshCw, ExternalLink, Paperclip, Grid, List, AlertCircle, PlusCircle, X, Trash2 } from 'lucide-react';
 import { Note } from '../types';
 
@@ -28,52 +28,56 @@ export function Archive({ notes, loading, onRefresh, onNavigateToCreate, onDelet
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // FIX SINKRONISASI: Refetch otomatis saat tab/window aktif kembali
+  // Ini memastikan data sinkron antar device/browser tanpa perlu tekan Refresh manual
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        onRefresh();
+      }
+    };
+    const handleFocus = () => {
+      onRefresh();
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleFocus);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, [onRefresh]);
+
   // Manual refresh handler with local loading state
   const handleRefresh = useCallback(async () => {
     setIsRefreshing(true);
     await Promise.resolve(onRefresh());
-    // Give a brief visual confirmation even if onRefresh resolves synchronously
     setTimeout(() => setIsRefreshing(false), 800);
   }, [onRefresh]);
 
-  // Helper: Detect if running on mobile (iOS Safari / Android Chrome)
-  const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-
-  // Helper: open attachment URL safely across all platforms
-  // — Mobile Safari blocks window.open() when not directly triggered by a touch event
-  // — Google Drive URLs need to use the /uc?export=view direct-access form
-  const openAttachment = useCallback((rawUrl: string) => {
-    if (!rawUrl) return;
-
-    // Convert data: URI to Blob URL for better cross-platform support
+  /**
+   * FIX MOBILE FILE LINK:
+   * Sebelumnya menggunakan openAttachment() dengan window.location.href atau window.open()
+   * yang diblokir Safari iOS di async handler.
+   *
+   * Solusi: gunakan <a href target="_blank"> native HTML untuk semua link attachment.
+   * Fungsi ini hanya digunakan sebagai fallback untuk data: URI (base64 blob lokal).
+   */
+  const createBlobUrl = useCallback((rawUrl: string): string => {
     if (rawUrl.startsWith('data:')) {
       try {
         const [header, b64] = rawUrl.split(',');
         const mime = header.match(/:(.*?);/)?.[1] || 'application/octet-stream';
         const bytes = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
         const blob = new Blob([bytes], { type: mime });
-        const blobUrl = URL.createObjectURL(blob);
-        // Use location.href on mobile to bypass Safari popup blocker
-        if (isMobile) {
-          window.location.href = blobUrl;
-        } else {
-          window.open(blobUrl, '_blank', 'noopener,noreferrer');
-        }
+        return URL.createObjectURL(blob);
       } catch {
-        // Final fallback
-        window.location.href = rawUrl;
+        return rawUrl;
       }
-      return;
     }
-
-    // For any regular https URL (Drive, Sheets, etc.)
-    // On mobile: use location.href directly — avoids popup blocker
-    if (isMobile) {
-      window.location.href = rawUrl;
-    } else {
-      window.open(rawUrl, '_blank', 'noopener,noreferrer');
-    }
-  }, [isMobile]);
+    return rawUrl;
+  }, []);
 
   // Compute unique tag categories listed in notes
   const tags = useMemo(() => {
@@ -111,8 +115,55 @@ export function Archive({ notes, loading, onRefresh, onNavigateToCreate, onDelet
 
   const isBusy = loading || isRefreshing;
 
+  /**
+   * Komponen AttachmentLink — render <a> native HTML.
+   * FIX MOBILE: <a href target="_blank"> selalu diizinkan browser mobile,
+   * tidak seperti window.open() di async handler yang diblokir Safari iOS.
+   * Untuk data: URI (base64 lokal), konversi ke Blob URL dulu via createBlobUrl().
+   */
+  const AttachmentLink = ({
+    url,
+    label,
+    icon = 'link',
+    className = '',
+    onClick,
+  }: {
+    url: string;
+    label: string;
+    icon?: 'link' | 'file';
+    className?: string;
+    onClick?: (e: React.MouseEvent) => void;
+  }) => {
+    const resolvedUrl = useMemo(() => createBlobUrl(url), [url]);
+
+    return (
+      <a
+        href={resolvedUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+        onClick={(e) => {
+          e.stopPropagation(); // cegah card onClick terpanggil
+          onClick?.(e);
+        }}
+        className={className}
+      >
+        {icon === 'file' ? (
+          <>
+            <Paperclip className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+            <span className="font-mono text-[10px] tracking-wide truncate flex-1 text-left">{label}</span>
+            <ExternalLink className="w-3 h-3 text-gray-600 shrink-0" />
+          </>
+        ) : (
+          <>
+            <ExternalLink className="w-3.5 h-3.5 shrink-0" />
+            <span className="font-sans text-[11px] truncate max-w-[170px] md:max-w-[210px]">{label}</span>
+          </>
+        )}
+      </a>
+    );
+  };
+
   return (
-    // Safe-area bottom padding ensures content clears the iOS Home Indicator & Bottom Nav
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300 pb-safe-or-8">
       {/* Title Header with action elements */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-[#232326] pb-4">
@@ -125,7 +176,6 @@ export function Archive({ notes, loading, onRefresh, onNavigateToCreate, onDelet
 
         {/* Header tools */}
         <div className="flex items-center gap-2 self-stretch sm:self-auto">
-          {/* Refresh Button — visible always, with loading spinner */}
           <button
             onClick={handleRefresh}
             disabled={isBusy}
@@ -138,21 +188,18 @@ export function Archive({ notes, loading, onRefresh, onNavigateToCreate, onDelet
             </span>
           </button>
 
-          {/* Grid/List Toggle — desktop only */}
           <div className="hidden md:flex bg-[#0A0A0B] rounded-lg border border-[#232326] p-1 gap-1">
             <button
               onClick={() => setViewMode('grid')}
-              className={`p-1.5 rounded-md transition-all ${
-                viewMode === 'grid' ? 'bg-[#B4B0FF]/25 text-[#B4B0FF]' : 'text-gray-500 hover:text-white'
-              }`}
+              className={`p-1.5 rounded-md transition-all ${viewMode === 'grid' ? 'bg-[#B4B0FF]/25 text-[#B4B0FF]' : 'text-gray-500 hover:text-white'
+                }`}
             >
               <Grid className="w-3.5 h-3.5" />
             </button>
             <button
               onClick={() => setViewMode('list')}
-              className={`p-1.5 rounded-md transition-all ${
-                viewMode === 'list' ? 'bg-[#B4B0FF]/25 text-[#B4B0FF]' : 'text-gray-500 hover:text-white'
-              }`}
+              className={`p-1.5 rounded-md transition-all ${viewMode === 'list' ? 'bg-[#B4B0FF]/25 text-[#B4B0FF]' : 'text-gray-500 hover:text-white'
+                }`}
             >
               <List className="w-3.5 h-3.5" />
             </button>
@@ -162,7 +209,6 @@ export function Archive({ notes, loading, onRefresh, onNavigateToCreate, onDelet
 
       {/* Filter and Search Bar Row */}
       <div className="flex flex-col md:flex-row gap-3">
-        {/* Search Field */}
         <div className="relative flex-1">
           <Search className="w-4 h-4 text-gray-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
           <input
@@ -174,15 +220,13 @@ export function Archive({ notes, loading, onRefresh, onNavigateToCreate, onDelet
           />
         </div>
 
-        {/* Categories Pills Carousel */}
         <div className="flex items-center gap-1.5 overflow-x-auto pb-1 select-none no-scrollbar">
           <button
             onClick={() => setSelectedTag(null)}
-            className={`px-3 py-1.5 rounded-full font-sans text-[11px] tracking-wide uppercase transition-all whitespace-nowrap cursor-pointer min-h-[36px] ${
-              !selectedTag
+            className={`px-3 py-1.5 rounded-full font-sans text-[11px] tracking-wide uppercase transition-all whitespace-nowrap cursor-pointer min-h-[36px] ${!selectedTag
                 ? 'bg-[#B4B0FF] text-[#0A0A0B] font-bold border border-[#B4B0FF]/50'
                 : 'bg-[#1C1C1E] text-gray-400 border border-[#232326] hover:border-gray-600'
-            }`}
+              }`}
           >
             All drafts
           </button>
@@ -190,11 +234,10 @@ export function Archive({ notes, loading, onRefresh, onNavigateToCreate, onDelet
             <button
               key={tag}
               onClick={() => setSelectedTag(tag)}
-              className={`px-3 py-1.5 rounded-full font-sans text-[11px] tracking-wide uppercase transition-all whitespace-nowrap cursor-pointer min-h-[36px] ${
-                selectedTag === tag
+              className={`px-3 py-1.5 rounded-full font-sans text-[11px] tracking-wide uppercase transition-all whitespace-nowrap cursor-pointer min-h-[36px] ${selectedTag === tag
                   ? 'bg-[#B4B0FF] text-[#0A0A0B] font-bold border border-[#B4B0FF]/50'
                   : 'bg-[#1C1C1E] text-gray-400 border border-[#232326] hover:border-gray-600'
-              }`}
+                }`}
             >
               {tag}
             </button>
@@ -221,7 +264,6 @@ export function Archive({ notes, loading, onRefresh, onNavigateToCreate, onDelet
           ))}
         </div>
       ) : filteredNotes.length === 0 ? (
-        /* Empty State */
         <div className="flex flex-col items-center justify-center py-16 px-4 text-center bg-[#1C1C1E]/30 border border-dashed border-[#232326] rounded-2xl">
           <AlertCircle className="w-12 h-12 text-gray-500 mb-3 opacity-60" />
           <h4 className="font-sans text-white font-semibold text-base mb-1">No Notes Found</h4>
@@ -238,20 +280,16 @@ export function Archive({ notes, loading, onRefresh, onNavigateToCreate, onDelet
           </button>
         </div>
       ) : (
-        /* Notes Listing — responsive grid, z-20 so cards sit above any nav ghost layers */
         <div className={`grid gap-4 relative z-20 ${viewMode === 'grid' ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3' : 'grid-cols-1'}`}>
           {filteredNotes.map(note => (
             <article
               key={note.id}
               onClick={() => setSelectedNote(note)}
-              // NOTE: overflow-hidden removed intentionally — it was clipping touch events
-              // on attachment links in Mobile Safari. Cards use rounded-2xl without clip.
               className="bg-[#1C1C1E] rounded-2xl border border-[#232326] p-5 hover:border-[#B4B0FF]/40 transition-all duration-300 flex flex-col justify-between group relative h-full min-h-[190px] cursor-pointer"
             >
               <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-white/5 via-transparent rounded-t-2xl" />
 
               <div>
-                {/* Meta details Header */}
                 <div className="flex justify-between items-start mb-3">
                   <div className="flex gap-2 items-center flex-wrap">
                     <span className="font-mono text-[10px] text-gray-500 tracking-wider font-semibold uppercase">
@@ -279,79 +317,61 @@ export function Archive({ notes, loading, onRefresh, onNavigateToCreate, onDelet
                   )}
                 </div>
 
-                {/* Title */}
                 <h3 className="font-sans text-sm font-semibold text-white group-hover:text-[#B4B0FF] transition-colors mb-2 line-clamp-1">
                   {note.title || "Untitled Note"}
                 </h3>
 
-                {/* Content text */}
                 <p className="font-sans text-xs text-gray-400 leading-relaxed mb-4 line-clamp-4 whitespace-pre-line">
                   {note.content}
                 </p>
               </div>
 
-              {/* Attachments / Links footer — z-10 + stopPropagation so taps register on iOS */}
+              {/* Attachments / Links footer */}
               {(note.url || note.attachmentName || note.driveFileUrl || (note.urls && note.urls.length > 0) || (note.attachments && note.attachments.length > 0)) && (
                 <div className="pt-3 border-t border-[#232326] flex flex-col gap-2 mt-2 relative z-10">
-                  {/* Note URL */}
+                  {/* Note URL — FIX: pakai <a> native via AttachmentLink */}
                   {note.url && (
-                    <button
-                      type="button"
-                      onClick={(e) => { e.stopPropagation(); openAttachment(note.url!); }}
+                    <AttachmentLink
+                      url={note.url}
+                      label={note.url}
+                      icon="link"
                       className="inline-flex items-center gap-2 text-xs text-[#4FD1C5] min-h-[44px] px-1 -mx-1 active:opacity-70"
-                    >
-                      <ExternalLink className="w-3.5 h-3.5 shrink-0" />
-                      <span className="font-sans text-[11px] truncate max-w-[170px] md:max-w-[210px]">{note.url}</span>
-                    </button>
+                    />
                   )}
                   {note.urls?.filter(u => u).map((u, i) => (
-                    <button
+                    <AttachmentLink
                       key={`url-${i}`}
-                      type="button"
-                      onClick={(e) => { e.stopPropagation(); openAttachment(u); }}
+                      url={u}
+                      label={u}
+                      icon="link"
                       className="inline-flex items-center gap-2 text-xs text-[#4FD1C5] min-h-[44px] px-1 -mx-1 active:opacity-70"
-                    >
-                      <ExternalLink className="w-3.5 h-3.5 shrink-0" />
-                      <span className="font-sans text-[11px] truncate max-w-[170px] md:max-w-[210px]">{u}</span>
-                    </button>
+                    />
                   ))}
 
-                  {/* Drive file attachment — resolves driveFileUrl first, then attachmentUrl */}
+                  {/* Drive file attachment — FIX: pakai <a> native */}
                   {(note.attachmentName || note.driveFileUrl) && (() => {
                     const fileUrl = note.driveFileUrl || note.attachmentUrl || '';
                     const fileName = note.attachmentName || 'View Attachment';
                     if (!fileUrl) return null;
                     return (
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          openAttachment(fileUrl);
-                        }}
+                      <AttachmentLink
+                        url={fileUrl}
+                        label={fileName}
+                        icon="file"
                         className="inline-flex items-center gap-2 text-xs text-gray-300 hover:text-[#B4B0FF] bg-[#0A0A0B]/70 border border-[#232326] px-3 py-2.5 rounded-xl w-full transition-colors cursor-pointer min-h-[44px] active:scale-[0.98]"
-                      >
-                        <Paperclip className="w-3.5 h-3.5 text-gray-400 shrink-0" />
-                        <span className="font-mono text-[10px] tracking-wide truncate flex-1 text-left">{fileName}</span>
-                        <ExternalLink className="w-3 h-3 text-gray-600 shrink-0" />
-                      </button>
+                      />
                     );
                   })()}
 
-                  {/* Local attachments (created on this device before GAS upload) */}
+                  {/* Local attachments */}
                   {note.attachments?.map((att, i) => (
-                    <button
+                    <AttachmentLink
                       key={`att-${i}`}
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        openAttachment(att.url);
-                      }}
+                      url={att.url}
+                      label={att.name}
+                      icon="file"
                       className="inline-flex items-center gap-2 text-xs text-gray-300 hover:text-[#B4B0FF] bg-[#0A0A0B]/70 border border-[#232326] px-3 py-2.5 rounded-xl w-full transition-colors cursor-pointer min-h-[44px] active:scale-[0.98]"
-                    >
-                      <Paperclip className="w-3.5 h-3.5 text-gray-400 shrink-0" />
-                      <span className="font-mono text-[10px] tracking-wide truncate flex-1 text-left">{att.name}</span>
-                      <ExternalLink className="w-3 h-3 text-gray-600 shrink-0" />
-                    </button>
+                    />
                   ))}
                 </div>
               )}
@@ -360,7 +380,7 @@ export function Archive({ notes, loading, onRefresh, onNavigateToCreate, onDelet
         </div>
       )}
 
-      {/* Note Detail Modal — full-height safe on iOS with env(safe-area-inset-bottom) */}
+      {/* Note Detail Modal */}
       {selectedNote && (
         <div
           className="fixed inset-0 bg-[#0A0A0B]/85 backdrop-blur-md z-[60] flex items-end sm:items-center justify-center p-0 sm:p-4"
@@ -376,12 +396,10 @@ export function Archive({ notes, loading, onRefresh, onNavigateToCreate, onDelet
           >
             <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-[#B4B0FF] to-[#4FD1C5] rounded-t-2xl" />
 
-            {/* Drag handle pill (mobile UX) */}
             <div className="flex justify-center pt-3 pb-1 md:hidden">
               <div className="w-10 h-1 bg-gray-600 rounded-full" />
             </div>
 
-            {/* Header */}
             <div className="flex justify-between items-start gap-4 px-6 pb-4 pt-3 border-b border-[#232326]">
               <div className="flex-1 min-w-0">
                 <div className="flex flex-wrap items-center gap-2 mb-1.5">
@@ -422,68 +440,55 @@ export function Archive({ notes, loading, onRefresh, onNavigateToCreate, onDelet
               </div>
             </div>
 
-            {/* Content (Scrollable) */}
             <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4 scrollbar-thin scrollbar-thumb-gray-800">
               <p className="font-sans text-xs text-gray-300 leading-relaxed whitespace-pre-line">
                 {selectedNote.content}
               </p>
             </div>
 
-            {/* Footer with links / attachments */}
+            {/* Modal footer: links/attachments */}
             <div className="px-6 pt-4 pb-5 border-t border-[#232326] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div className="flex flex-wrap gap-2">
                 {selectedNote.url && (
-                  <button
-                    type="button"
-                    onClick={() => openAttachment(selectedNote.url!)}
+                  <AttachmentLink
+                    url={selectedNote.url}
+                    label={selectedNote.url}
+                    icon="link"
                     className="inline-flex items-center gap-1.5 text-xs text-[#4FD1C5] bg-[#0A0A0B]/50 border border-[#232326] px-3 py-2.5 rounded-xl min-h-[44px] active:scale-[0.98]"
-                  >
-                    <ExternalLink className="w-3.5 h-3.5 shrink-0" />
-                    <span className="font-sans text-[11px] truncate max-w-[180px]">{selectedNote.url}</span>
-                  </button>
+                  />
                 )}
                 {selectedNote.urls?.filter(u => u).map((u, i) => (
-                  <button
+                  <AttachmentLink
                     key={`modal-url-${i}`}
-                    type="button"
-                    onClick={() => openAttachment(u)}
+                    url={u}
+                    label={u}
+                    icon="link"
                     className="inline-flex items-center gap-1.5 text-xs text-[#4FD1C5] bg-[#0A0A0B]/50 border border-[#232326] px-3 py-2.5 rounded-xl min-h-[44px] active:scale-[0.98]"
-                  >
-                    <ExternalLink className="w-3.5 h-3.5 shrink-0" />
-                    <span className="font-sans text-[11px] truncate max-w-[180px]">{u}</span>
-                  </button>
+                  />
                 ))}
 
-                {/* Drive file attachment — driveFileUrl is priority (multi-device), fallback to attachmentUrl */}
                 {(selectedNote.attachmentName || selectedNote.driveFileUrl) && (() => {
                   const fileUrl = selectedNote.driveFileUrl || selectedNote.attachmentUrl || '';
                   const fileName = selectedNote.attachmentName || 'View Attachment';
                   if (!fileUrl) return null;
                   return (
-                    <button
-                      type="button"
-                      onClick={() => openAttachment(fileUrl)}
+                    <AttachmentLink
+                      url={fileUrl}
+                      label={fileName}
+                      icon="file"
                       className="inline-flex items-center gap-2 text-xs text-gray-300 hover:text-[#B4B0FF] bg-[#0A0A0B]/50 border border-[#232326] px-3 py-2.5 rounded-xl transition-colors cursor-pointer min-h-[44px] active:scale-[0.98]"
-                    >
-                      <Paperclip className="w-3.5 h-3.5 text-gray-400 shrink-0" />
-                      <span className="font-mono text-[10px] tracking-wide truncate max-w-[160px]">{fileName}</span>
-                      <ExternalLink className="w-3 h-3 text-gray-500 shrink-0" />
-                    </button>
+                    />
                   );
                 })()}
 
-                {/* Local attachments */}
                 {selectedNote.attachments?.map((att, i) => (
-                  <button
+                  <AttachmentLink
                     key={`modal-att-${i}`}
-                    type="button"
-                    onClick={() => openAttachment(att.url)}
+                    url={att.url}
+                    label={att.name}
+                    icon="file"
                     className="inline-flex items-center gap-2 text-xs text-gray-300 hover:text-[#B4B0FF] bg-[#0A0A0B]/50 border border-[#232326] px-3 py-2.5 rounded-xl transition-colors cursor-pointer min-h-[44px] active:scale-[0.98]"
-                  >
-                    <Paperclip className="w-3.5 h-3.5 text-gray-400 shrink-0" />
-                    <span className="font-mono text-[10px] tracking-wide truncate max-w-[160px]">{att.name}</span>
-                    <ExternalLink className="w-3 h-3 text-gray-500 shrink-0" />
-                  </button>
+                  />
                 ))}
               </div>
 

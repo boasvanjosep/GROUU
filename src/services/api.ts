@@ -31,6 +31,15 @@ const getMimeType = (fileName: string): string => {
   return MIME_MAP[ext] || 'application/octet-stream';
 };
 
+/**
+ * FIX SINKRONISASI:
+ * requestGas sebelumnya return `result.data` (sudah di-unwrap dari { success, data }).
+ * Ini menyebabkan double-unwrap di listNotes/listExpenses/listSchedules yang melakukan
+ * `result.data` lagi — hasilnya selalu undefined, sehingga selalu fallback ke localStorage.
+ *
+ * Sekarang requestGas return full GAS response object { success, data, ... }
+ * agar caller bisa akses .data dengan benar.
+ */
 const requestGas = async <T = unknown>(payload: Record<string, unknown>): Promise<T> => {
   const { gasUrl, grouuToken } = getAppConfig();
   if (!isAllowedGasUrl(gasUrl)) {
@@ -43,12 +52,14 @@ const requestGas = async <T = unknown>(payload: Record<string, unknown>): Promis
     body: JSON.stringify({ gasUrl, payload, grouuToken }),
   });
 
+  // Return full response — caller bertanggung jawab atas .data / .success
   const result = await response.json().catch(() => null);
   if (!response.ok || !result?.success) {
     throw new Error(result?.error || `GAS proxy request failed (${response.status})`);
   }
 
-  return result.data as T;
+  // Return full result object (bukan result.data) agar caller bisa akses .data
+  return result as T;
 };
 
 // Key names for localStorage fallback cache
@@ -192,12 +203,21 @@ export interface DashboardStats {
   totalDriveFiles: number;
 }
 
+// Tipe internal untuk raw GAS list response
+interface GasListResponse<T> {
+  success: boolean;
+  data?: T[];
+}
+
 export const apiService = {
   getDashboardStats: async (): Promise<DashboardStats | null> => {
     const config = getAppConfig();
     if (!isGasActive(config.gasUrl)) return null;
     try {
-      return await requestGas<DashboardStats>({ action: 'getDashboardStats' });
+      // getDashboardStats: GAS return { success, data: { totalExpense, ... } }
+      // requestGas sekarang return full object, ambil .data langsung
+      const result = await requestGas<{ success: boolean; data: DashboardStats }>({ action: 'getDashboardStats' });
+      return result.data ?? null;
     } catch (err) {
       console.warn("GAS getDashboardStats failed:", err);
     }
@@ -211,21 +231,21 @@ export const apiService = {
 
     if (isGasActive(config.gasUrl)) {
       try {
-        const result = await requestGas<{ data?: unknown[] }>({ action: 'listNotes' });
+        // FIX: requestGas sekarang return { success, data: [...] } — ambil .data langsung
+        const result = await requestGas<GasListResponse<Record<string, unknown>>>({ action: 'listNotes' });
         if (result && Array.isArray(result.data)) {
-          // GAS is the source of truth — map all fields including Drive file metadata
-          const gasData = (result.data as any[]).map(row => ({
-            id: row.id,
-            title: row.title,
-            content: row.content,
-            url: row.url,
-            urls: row.urls || [],
-            createdAt: row.createdAt,
-            category: row.category,
-            attachmentName: row.attachmentName,
-            attachmentUrl: row.attachmentUrl,
-            driveFileUrl: row.driveFileUrl || row.attachmentUrl,
-            driveFileIds: row.driveFileIds,
+          const gasData = result.data.map(row => ({
+            id: row.id as string,
+            title: row.title as string,
+            content: row.content as string,
+            url: row.url as string | undefined,
+            urls: (row.urls as string[]) || [],
+            createdAt: row.createdAt as string,
+            category: row.category as string | undefined,
+            attachmentName: row.attachmentName as string | undefined,
+            attachmentUrl: row.attachmentUrl as string | undefined,
+            driveFileUrl: (row.driveFileUrl as string) || (row.attachmentUrl as string),
+            driveFileIds: row.driveFileIds as string | undefined,
           })) as Note[];
 
           // Filter out locally-deleted items, then replace local cache entirely with GAS data
@@ -299,15 +319,12 @@ export const apiService = {
   deleteNote: async (id: string): Promise<boolean> => {
     const config = getAppConfig();
 
-    // Dapatkan data note sebelum dihapus untuk dikirim ke GAS
     const currentNotes = getFallbackData<Note>(STORAGE_KEYS.NOTES, INITIAL_NOTES);
     const noteToDelete = currentNotes.find(n => n.id === id);
 
-    // Update local state first
     const updatedNotes = currentNotes.filter(n => n.id !== id);
     localStorage.setItem(STORAGE_KEYS.NOTES, JSON.stringify(updatedNotes));
 
-    // Track deleted ID so it doesn't reappear from GAS
     const deletedIds: string[] = JSON.parse(localStorage.getItem(DELETED_KEYS.NOTES) || '[]');
     if (!deletedIds.includes(id)) {
       deletedIds.push(id);
@@ -321,8 +338,6 @@ export const apiService = {
           id: id,
         };
 
-        // Kirim driveFileIds agar GAS dapat menghapus berkas Drive secara akurat
-        // berdasarkan ID (menghindari kolisi nama file antar note).
         if (noteToDelete?.driveFileIds) {
           payload.driveFileIds = noteToDelete.driveFileIds;
         }
@@ -344,7 +359,8 @@ export const apiService = {
 
     if (isGasActive(config.gasUrl)) {
       try {
-        const result = await requestGas<{ data?: unknown[] }>({ action: 'listExpenses' });
+        // FIX: ambil .data dari full response
+        const result = await requestGas<GasListResponse<Expense>>({ action: 'listExpenses' });
         if (result && Array.isArray(result.data)) {
           const gasData = result.data as Expense[];
           const merged = mergeDataById(gasData, local, deletedExpenseIds);
@@ -371,7 +387,6 @@ export const apiService = {
       ...expenseData
     };
 
-    // Keep state
     const currentList = getFallbackData<Expense>(STORAGE_KEYS.EXPENSES, INITIAL_EXPENSES);
     const updated = [newExpense, ...currentList];
     localStorage.setItem(STORAGE_KEYS.EXPENSES, JSON.stringify(updated));
@@ -429,7 +444,8 @@ export const apiService = {
 
     if (isGasActive(config.gasUrl)) {
       try {
-        const result = await requestGas<{ data?: unknown[] }>({ action: 'listSchedules' });
+        // FIX: ambil .data dari full response
+        const result = await requestGas<GasListResponse<Activity>>({ action: 'listSchedules' });
         if (result && Array.isArray(result.data)) {
           const gasData = result.data as Activity[];
           const merged = mergeDataById(gasData, local, deletedScheduleIds);
