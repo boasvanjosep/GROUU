@@ -253,6 +253,7 @@ const isGasActive = (url: string): boolean => {
 
 export interface DashboardStats {
   totalExpense: number;
+  monthlyExpense?: number;
   totalLedgerItems: number;
   totalNotes: number;
   totalSchedules: number;

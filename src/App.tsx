@@ -59,21 +59,12 @@ export default function App() {
   // Synchronize data payloads representing real entries
   const reloadData = async (silent = false) => {
     if (!silent) setLoading(true);
-    try {
-      // Load from cache immediately for instant display
-      const cachedNotes: Note[] = JSON.parse(localStorage.getItem(STORAGE_KEYS.NOTES) || 'null') || INITIAL_NOTES;
-      setNotes(cachedNotes);
-      const cachedExpenses: Expense[] = JSON.parse(localStorage.getItem(STORAGE_KEYS.EXPENSES) || 'null') || INITIAL_EXPENSES;
-      setExpenses(cachedExpenses);
-      const cachedSchedules: Activity[] = JSON.parse(localStorage.getItem(STORAGE_KEYS.SCHEDULE) || 'null') || INITIAL_SCHEDULE;
-      setSchedules(cachedSchedules);
-      const cachedTasks: Task[] = JSON.parse(localStorage.getItem(STORAGE_KEYS.TASKS) || 'null') || INITIAL_TASKS;
-      setTasks(cachedTasks);
+    const config = getAppConfig();
+    const gasConfigured = !!config.gasUrl;
 
-      // Only fetch from GAS on explicit refresh (silent=false) to avoid overwriting
-      // local state with stale GAS data. List functions now merge localStorage data
-      // with GAS responses and track deleted IDs for consistency.
+    try {
       if (!silent) {
+        // Non-silent: full GAS fetch + update state
         const [dbNotes, dbExpenses, dbSchedules, dbTasks] = await Promise.all([
           apiService.listNotes(),
           apiService.listExpenses(),
@@ -85,6 +76,26 @@ export default function App() {
         setSchedules(dbSchedules);
         setTasks(dbTasks);
         triggerToast('Data synced successfully', 'success');
+      } else {
+        // Silent: load from localStorage cache only
+        // When GAS is configured, don't fallback to dummy INITIAL data
+        // so that the UI shows accurate 0/empty until real sync completes.
+        const emptyFallbackNotes: Note[] = [];
+        const emptyFallbackExpenses: Expense[] = [];
+        const emptyFallbackSchedules: Activity[] = [];
+        const emptyFallbackTasks: Task[] = [];
+
+        const cachedNotes = JSON.parse(localStorage.getItem(STORAGE_KEYS.NOTES) || 'null');
+        setNotes(cachedNotes || (gasConfigured ? emptyFallbackNotes : INITIAL_NOTES));
+
+        const cachedExpenses = JSON.parse(localStorage.getItem(STORAGE_KEYS.EXPENSES) || 'null');
+        setExpenses(cachedExpenses || (gasConfigured ? emptyFallbackExpenses : INITIAL_EXPENSES));
+
+        const cachedSchedules = JSON.parse(localStorage.getItem(STORAGE_KEYS.SCHEDULE) || 'null');
+        setSchedules(cachedSchedules || (gasConfigured ? emptyFallbackSchedules : INITIAL_SCHEDULE));
+
+        const cachedTasks = JSON.parse(localStorage.getItem(STORAGE_KEYS.TASKS) || 'null');
+        setTasks(cachedTasks || (gasConfigured ? emptyFallbackTasks : INITIAL_TASKS));
       }
     } catch (err) {
       if (!silent) {
@@ -95,34 +106,53 @@ export default function App() {
     }
   };
 
-  // Run initial state loading
+  // Run initial state loading then silently purge dummy data from localStorage if GAS is set
   useEffect(() => {
+    const config = getAppConfig();
+    if (config.gasUrl) {
+      // Clear any dummy initial data that may have been cached in localStorage
+      const dummyIds = { e: ['e1','e2','e3'], s: ['s1','s2'], n: ['n1','n2','n3'], t: ['t1','t2','t3'] };
+
+      const purgeDummies = (storageKey: string, ids: string[]) => {
+        const cached = JSON.parse(localStorage.getItem(storageKey) || 'null');
+        if (cached && Array.isArray(cached)) {
+          const purged = (cached as {id: string}[]).filter(item => !ids.includes(item.id));
+          if (purged.length !== cached.length) {
+            localStorage.setItem(storageKey, JSON.stringify(purged));
+          }
+        }
+      };
+
+      purgeDummies(STORAGE_KEYS.EXPENSES, dummyIds.e);
+      purgeDummies(STORAGE_KEYS.SCHEDULE, dummyIds.s);
+      purgeDummies(STORAGE_KEYS.NOTES, dummyIds.n);
+      purgeDummies(STORAGE_KEYS.TASKS, dummyIds.t);
+    }
     reloadData(true);
   }, []);
 
   // Auto-refresh: hit GAS when switching to data tabs
   useEffect(() => {
     if (activeTab === 'archive') {
-      // Always fetch notes fresh from GAS when opening Archive
       setLoading(true);
       apiService.listNotes()
-        .then(dbNotes => {
-          setNotes(dbNotes);
-        })
-        .catch(() => {
-          // silently fall back to cached state
-        })
+        .then(dbNotes => { setNotes(dbNotes); })
+        .catch(() => {})
         .finally(() => setLoading(false));
     } else if (activeTab === 'tasks') {
       setLoading(true);
       apiService.listTasks()
-        .then(dbTasks => {
-          setTasks(dbTasks);
-        })
+        .then(dbTasks => { setTasks(dbTasks); })
         .catch(() => {})
         .finally(() => setLoading(false));
     } else if (activeTab === 'dashboard') {
-      reloadData(true);
+      // Silently fetch fresh expenses + schedules for Dashboard stats & calendar
+      Promise.all([apiService.listExpenses(), apiService.listSchedules()])
+        .then(([dbExpenses, dbSchedules]) => {
+          setExpenses(dbExpenses);
+          setSchedules(dbSchedules);
+        })
+        .catch(() => {});
     }
   }, [activeTab]);
 
@@ -280,7 +310,7 @@ export default function App() {
         notesCount: liveStats.totalNotes,
         driveFilesCount: liveStats.totalDriveFiles,
         activeTasksCount,
-        monthlyExpenseAmount,
+        monthlyExpenseAmount: liveStats.monthlyExpense ?? monthlyExpenseAmount,
       }
     : {
         expensesCount: 0,
