@@ -73,8 +73,20 @@ export function Dashboard({ onNavigate, totals, syncing, lastSync, schedules }: 
   const handlePrevMonth = () => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1));
   const handleNextMonth = () => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1));
 
-  const selectedDateStr = selectedDate ? selectedDate.toLocaleDateString('sv-SE') : '';
-  const eventsOnSelectedDate = (schedules || []).filter(s => s.date === selectedDateStr);
+  const getYYYYMMDD = (dateVal: string | Date | null): string => {
+    if (!dateVal) return '';
+    if (typeof dateVal === 'string') {
+      if (dateVal.includes('T')) return dateVal.split('T')[0];
+      return dateVal;
+    }
+    const year = dateVal.getFullYear();
+    const month = String(dateVal.getMonth() + 1).padStart(2, '0');
+    const day = String(dateVal.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  const selectedDateStr = getYYYYMMDD(selectedDate);
+  const eventsOnSelectedDate = (schedules || []).filter(s => getYYYYMMDD(s.date) === selectedDateStr);
 
   const syncLabel = lastSync
     ? `Live \u00b7 ${lastSync.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}`
@@ -166,9 +178,9 @@ export function Dashboard({ onNavigate, totals, syncing, lastSync, schedules }: 
           <div className="grid grid-cols-7 gap-1 text-center">
             {daysInMonth.map((date, i) => {
               if (!date) return <div key={i} className="p-2" />;
-              const isToday = date.toDateString() === new Date().toDateString();
-              const isSelected = selectedDate && date.toDateString() === selectedDate.toDateString();
-              const hasEvents = (schedules || []).some(s => s.date === date.toLocaleDateString('sv-SE'));
+              const isToday = getYYYYMMDD(date) === getYYYYMMDD(new Date());
+              const isSelected = selectedDate && getYYYYMMDD(date) === selectedDateStr;
+              const hasEvents = (schedules || []).some(s => getYYYYMMDD(s.date) === getYYYYMMDD(date));
               return (
                 <div
                   key={i}
