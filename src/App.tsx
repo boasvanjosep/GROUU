@@ -259,6 +259,16 @@ export default function App() {
 
   const activeTasksCount = tasks.filter(t => t.progress !== 'Done').length;
 
+  const currentMonth = new Date().getMonth();
+  const currentYear = new Date().getFullYear();
+  const monthlyExpenseAmount = expenses
+    .filter(e => {
+      if (!e.createdAt) return false;
+      const d = new Date(e.createdAt);
+      return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
+    })
+    .reduce((sum, e) => sum + e.amount, 0);
+
   const totals = liveStats
     ? {
         expensesCount: liveStats.totalLedgerItems,
@@ -267,6 +277,7 @@ export default function App() {
         notesCount: liveStats.totalNotes,
         driveFilesCount: liveStats.totalDriveFiles,
         activeTasksCount,
+        monthlyExpenseAmount,
       }
     : {
         expensesCount: 0,
@@ -275,6 +286,7 @@ export default function App() {
         notesCount: 0,
         driveFilesCount: 0,
         activeTasksCount,
+        monthlyExpenseAmount,
       };
 
   const handleDashboardShortcutNavigate = (
@@ -352,6 +364,7 @@ export default function App() {
             totals={totals}
             syncing={statsSyncing}
             lastSync={lastStatsSync}
+            schedules={schedules}
           />
         )}
 
@@ -360,7 +373,7 @@ export default function App() {
             notes={notes}
             loading={loading}
             onRefresh={handleRefreshNotes}
-            onNavigateToCreate={() => handleDashboardShortcutNavigate('quick-entry', 'note')}
+            onAddNote={handleAddNote}
             onDeleteNote={handleDeleteNote}
           />
         )}
@@ -380,7 +393,6 @@ export default function App() {
             initialSubtab={activeSubtab}
             onAddExpense={handleAddExpense}
             onAddActivity={handleAddActivity}
-            onAddNote={handleAddNote}
           />
         )}
       </main>

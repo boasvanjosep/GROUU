@@ -11,23 +11,18 @@ interface QuickEntryProps {
   initialSubtab?: 'expense' | 'activity' | 'note';
   onAddExpense: (expense: Omit<Expense, 'id' | 'createdAt'>) => Promise<boolean>;
   onAddActivity: (activity: Omit<Activity, 'id' | 'createdAt'>) => Promise<boolean>;
-  onAddNote: (
-    note: Omit<Note, 'id' | 'createdAt'>,
-    files?: { fileName: string; fileData: string }[],
-    urls?: string[]
-  ) => Promise<boolean>;
 }
 
 // Konfigurasi Pilihan Dropdown Bertingkat
 const BANK_OPTIONS = ['BRI', 'BCA', 'Mandiri', 'BNI', 'Pilih Lain (Isi Sendiri)'];
 const WALLET_OPTIONS = ['GoPay', 'OVO', 'Dana', 'ShopeePay', 'Pilih Lain (Isi Sendiri)'];
 
-export function QuickEntry({ initialSubtab = 'expense', onAddExpense, onAddActivity, onAddNote }: QuickEntryProps) {
-  const [activeForm, setActiveForm] = useState<'expense' | 'activity' | 'note'>(initialSubtab);
+export function QuickEntry({ initialSubtab = 'expense', onAddExpense, onAddActivity }: QuickEntryProps) {
+  const [activeForm, setActiveForm] = useState<'expense' | 'activity'>(initialSubtab === 'note' ? 'expense' : initialSubtab);
 
   // Sync state if dashboard shortcut changes current subtab
   useEffect(() => {
-    setActiveForm(initialSubtab);
+    setActiveForm(initialSubtab === 'note' ? 'expense' : (initialSubtab ?? 'expense'));
   }, [initialSubtab]);
 
   // Loading indicator for submission locks
@@ -166,101 +161,8 @@ export function QuickEntry({ initialSubtab = 'expense', onAddExpense, onAddActiv
     setLoading(false);
   };
 
-  // --- NOTE FORM STATE ---
-  const [noteTitle, setNoteTitle] = useState('');
-  const [noteContent, setNoteContent] = useState('');
-  const [noteUrls, setNoteUrls] = useState<string[]>(['']);
-  const [noteCategory, setNoteCategory] = useState('Research');
-  const [attachedFiles, setAttachedFiles] = useState<{ fileName: string; fileData: string }[]>([]);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const processFiles = (files: FileList | File[]) => {
-    const fileArray = Array.from(files);
-    if (fileArray.length === 0) return;
 
-    const newFiles: { fileName: string; fileData: string }[] = [];
-    let processedCount = 0;
-
-    fileArray.forEach((file) => {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        if (event.target?.result) {
-          const base64Str = event.target.result.toString().split(',')[1];
-          newFiles.push({
-            fileName: file.name,
-            fileData: base64Str
-          });
-        }
-        processedCount++;
-        if (processedCount === fileArray.length) {
-          setAttachedFiles((prev) => [...prev, ...newFiles]);
-        }
-      };
-      reader.readAsDataURL(file);
-    });
-  };
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) processFiles(e.target.files);
-  };
-
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-  };
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    if (e.dataTransfer.files) processFiles(e.dataTransfer.files);
-  };
-
-  const handleAddUrlField = () => {
-    setNoteUrls([...noteUrls, '']);
-  };
-
-  const handleUrlChange = (index: number, value: string) => {
-    const newUrls = [...noteUrls];
-    newUrls[index] = value;
-    setNoteUrls(newUrls);
-  };
-
-  const handleRemoveUrl = (index: number) => {
-    const newUrls = noteUrls.filter((_, i) => i !== index);
-    setNoteUrls(newUrls);
-  };
-
-  const handleSaveNote = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!noteTitle.trim()) {
-      alert("Masukkan judul catatan!");
-      return;
-    }
-    if (!noteContent.trim()) {
-      alert("Ketik isi atau detail catatan Anda terlebih dahulu!");
-      return;
-    }
-
-    setLoading(true);
-    const validUrls = noteUrls.filter(u => u.trim() !== '');
-
-    const success = await onAddNote(
-      {
-        title: noteTitle,
-        content: noteContent,
-        category: noteCategory,
-      },
-      attachedFiles,
-      validUrls
-    );
-
-    if (success) {
-      setNoteTitle('');
-      setNoteContent('');
-      setNoteUrls(['']);
-      setNoteCategory('Research');
-      setAttachedFiles([]);
-    }
-    setLoading(false);
-  };
 
   return (
     <div className="max-w-2xl mx-auto space-y-6 px-2 sm:px-0 animate-in fade-in slide-in-from-bottom-4 duration-300">
@@ -274,7 +176,7 @@ export function QuickEntry({ initialSubtab = 'expense', onAddExpense, onAddActiv
         </div>
 
         {/* Workspace Tab Bar Selector */}
-        <div className="grid grid-cols-3 bg-[#0A0A0B] p-1 rounded-xl border border-[#232326]">
+        <div className="grid grid-cols-2 bg-[#0A0A0B] p-1 rounded-xl border border-[#232326]">
           <button
             onClick={() => setActiveForm('expense')}
             className={`py-2 px-1 sm:py-2 sm:px-3 rounded-lg text-[11px] sm:text-xs font-semibold font-sans flex items-center justify-center gap-1 sm:gap-1.5 transition-all cursor-pointer ${activeForm === 'expense'
@@ -297,16 +199,7 @@ export function QuickEntry({ initialSubtab = 'expense', onAddExpense, onAddActiv
             <span>Activity</span>
           </button>
 
-          <button
-            onClick={() => setActiveForm('note')}
-            className={`py-2 px-1 sm:py-2 sm:px-3 rounded-lg text-[11px] sm:text-xs font-semibold font-sans flex items-center justify-center gap-1 sm:gap-1.5 transition-all cursor-pointer ${activeForm === 'note'
-                ? 'bg-[#B4B0FF] text-[#0A0A0B]'
-                : 'text-gray-400 hover:text-white'
-              }`}
-          >
-            <FileText className="w-3.5 h-3.5" />
-            <span>Note</span>
-          </button>
+
         </div>
       </div>
 
@@ -631,120 +524,7 @@ export function QuickEntry({ initialSubtab = 'expense', onAddExpense, onAddActiv
         </form>
       )}
 
-      {/* ----------------- FORM 3: RECORD NOTE ----------------- */}
-      {activeForm === 'note' && (
-        <form onSubmit={handleSaveNote} className="space-y-5 animate-in fade-in duration-200">
-          <div className="bg-[#1C1C1E] rounded-2xl border border-[#232326] p-4 sm:p-6 space-y-4">
-            {/* Note Title */}
-            <div className="flex flex-col space-y-1">
-              <label className="font-sans text-xs font-medium text-gray-400">Judul Catatan</label>
-              <input
-                type="text"
-                value={noteTitle}
-                onChange={(e) => setNoteTitle(e.target.value)}
-                placeholder="misal: Q3 Financial Strategy Draft, Ideation UI Refactor"
-                className="w-full bg-[#0A0A0B] border border-[#232326] rounded-xl px-4 py-3 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-[#B4B0FF]"
-              />
-            </div>
 
-            {/* Note category tag */}
-            <div className="flex flex-col space-y-1">
-              <label className="font-sans text-xs font-medium text-gray-400">Kategori Catatan</label>
-              <input
-                type="text"
-                value={noteCategory}
-                onChange={(e) => setNoteCategory(e.target.value)}
-                placeholder="misal: Tech, Finance, Readlist, Personal"
-                className="w-full bg-[#0A0A0B] border border-[#232326] rounded-xl px-4 py-3 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-[#B4B0FF]"
-              />
-            </div>
-
-            {/* Content Textarea */}
-            <div className="flex flex-col space-y-1">
-              <label className="font-sans text-xs font-medium text-gray-400">Isi Catatan / Note Content</label>
-              <textarea
-                value={noteContent}
-                onChange={(e) => setNoteContent(e.target.value)}
-                placeholder="Ketik draf pikiran penting, riset, atau memo di sini..."
-                rows={6}
-                className="w-full bg-[#0A0A0B] border border-[#232326] rounded-xl px-4 py-3 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-[#B4B0FF] resize-none"
-              />
-            </div>
-
-            {/* Reference Links */}
-            <div className="flex flex-col space-y-2">
-              <label className="font-sans text-xs font-medium text-gray-400 flex justify-between items-center">
-                <span>Tautan Referensi (URL Link)</span>
-                <button
-                  type="button"
-                  onClick={handleAddUrlField}
-                  className="text-[#B4B0FF] hover:text-white text-xs font-bold cursor-pointer"
-                >
-                  + Tambah Tautan
-                </button>
-              </label>
-              {noteUrls.map((url, index) => (
-                <div key={index} className="relative flex items-center gap-2">
-                  <div className="relative flex-1">
-                    <LinkIcon className="w-4 h-4 text-gray-500 absolute left-3 top-1/2 -translate-y-1/2" />
-                    <input
-                      type="url"
-                      value={url}
-                      onChange={(e) => handleUrlChange(index, e.target.value)}
-                      placeholder="https://docs.google.com/..."
-                      className="w-full pl-9 bg-[#0A0A0B] border border-[#232326] rounded-xl px-4 py-3 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-[#B4B0FF]"
-                    />
-                  </div>
-                  {noteUrls.length > 1 && (
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveUrl(index)}
-                      className="text-red-400 hover:text-red-300 p-2 text-xs font-bold cursor-pointer"
-                    >
-                      ✕
-                    </button>
-                  )}
-                </div>
-              ))}
-            </div>
-
-            {/* Drop Files / Media Selector Zone */}
-            <div className="flex flex-col space-y-1 pt-2">
-              <label className="font-sans text-xs font-medium text-gray-400">Lampiran Drive / File Pendukung</label>
-              <div
-                onDragOver={handleDragOver}
-                onDrop={handleDrop}
-                onClick={() => fileInputRef.current?.click()}
-                className="border-2 border-dashed border-[#232326] hover:border-[#B4B0FF]/60 hover:bg-[#0A0A0B]/50 cursor-pointer rounded-xl p-6 flex flex-col items-center justify-center text-center transition-all bg-[#0A0A0B]/10 group select-none"
-              >
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  onChange={handleFileChange}
-                  className="hidden"
-                  multiple
-                />
-                <UploadCloud className="w-8 h-8 text-gray-500 group-hover:text-[#B4B0FF] mb-2 transition-transform duration-300 group-hover:translate-y-[-2px]" />
-                <span className="font-sans text-xs font-semibold text-gray-300 group-hover:text-[#B4B0FF] transition-colors mb-1">
-                  {attachedFiles.length > 0 ? `${attachedFiles.length} File(s) Attached` : 'Drop files here, or browse'}
-                </span>
-                <span className="font-mono text-[10px] text-gray-500 truncate max-w-[220px] sm:max-w-md">
-                  {attachedFiles.length > 0 ? attachedFiles.map(f => f.fileName).join(', ') : 'Binary payload will base64-upload to Drive'}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* Quick Note Submit Button */}
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-[#B4B0FF] text-[#0A0A0B] py-4 rounded-xl font-sans text-sm font-bold flex justify-center items-center gap-2 active:scale-[0.99] transition-all disabled:opacity-50 cursor-pointer shadow-md shadow-[#B4B0FF]/15"
-          >
-            {loading ? 'Saving Draft in Cloud...' : 'Commit Note Entry'}
-          </button>
-        </form>
-      )}
     </div>
   );
 }

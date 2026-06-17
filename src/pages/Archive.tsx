@@ -4,23 +4,94 @@
  */
 
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
-import { Search, RefreshCw, ExternalLink, Paperclip, Grid, List, AlertCircle, PlusCircle, X, Trash2 } from 'lucide-react';
+import { Search, RefreshCw, ExternalLink, Paperclip, Grid, List, AlertCircle, PlusCircle, X, Trash2, Link as LinkIcon, UploadCloud } from 'lucide-react';
 import { Note } from '../types';
 
 interface ArchiveProps {
   notes: Note[];
   loading: boolean;
   onRefresh: () => void;
-  onNavigateToCreate: () => void;
+  onAddNote?: (
+    note: Omit<Note, 'id' | 'createdAt'>,
+    files?: { fileName: string; fileData: string }[],
+    urls?: string[]
+  ) => Promise<boolean>;
   onDeleteNote?: (id: string) => Promise<boolean>;
 }
 
-export function Archive({ notes, loading, onRefresh, onNavigateToCreate, onDeleteNote }: ArchiveProps) {
+export function Archive({ notes, loading, onRefresh, onAddNote, onDeleteNote }: ArchiveProps) {
   const [search, setSearch] = useState('');
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [selectedNote, setSelectedNote] = useState<Note | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Form State for Create Note
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [noteTitle, setNoteTitle] = useState('');
+  const [noteContent, setNoteContent] = useState('');
+  const [noteUrls, setNoteUrls] = useState<string[]>(['']);
+  const [noteCategory, setNoteCategory] = useState('Research');
+  const [attachedFiles, setAttachedFiles] = useState<{ fileName: string; fileData: string }[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const processFiles = (files: FileList | File[]) => {
+    const fileArray = Array.from(files);
+    if (fileArray.length === 0) return;
+
+    fileArray.forEach(file => {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const base64String = (event.target?.result as string).split(',')[1];
+        setAttachedFiles(prev => [...prev, {
+          fileName: file.name,
+          fileData: base64String
+        }]);
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) processFiles(e.target.files);
+  };
+  const handleDragOver = (e: React.DragEvent) => { e.preventDefault(); };
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    if (e.dataTransfer.files) processFiles(e.dataTransfer.files);
+  };
+  const handleAddUrlField = () => setNoteUrls([...noteUrls, '']);
+  const handleUrlChange = (index: number, value: string) => {
+    const newUrls = [...noteUrls];
+    newUrls[index] = value;
+    setNoteUrls(newUrls);
+  };
+  const handleRemoveUrl = (index: number) => setNoteUrls(noteUrls.filter((_, i) => i !== index));
+
+  const handleSaveNote = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!noteTitle.trim() || !noteContent.trim() || !onAddNote) return;
+
+    setIsSubmitting(true);
+    const validUrls = noteUrls.filter(u => u.trim() !== '');
+
+    const success = await onAddNote(
+      { title: noteTitle, content: noteContent, category: noteCategory },
+      attachedFiles,
+      validUrls
+    );
+
+    if (success) {
+      setNoteTitle('');
+      setNoteContent('');
+      setNoteUrls(['']);
+      setNoteCategory('Research');
+      setAttachedFiles([]);
+      setShowCreateModal(false);
+    }
+    setIsSubmitting(false);
+  };
 
   // Auto-fetch on mount — ensures fresh data every time the Archive tab is opened
   useEffect(() => {
@@ -177,13 +248,21 @@ export function Archive({ notes, loading, onRefresh, onNavigateToCreate, onDelet
         {/* Header tools */}
         <div className="flex items-center gap-2 self-stretch sm:self-auto">
           <button
+            onClick={() => setShowCreateModal(true)}
+            className="min-h-[44px] px-4 bg-[#B4B0FF] hover:bg-[#B4B0FF]/90 text-[#0A0A0B] rounded-xl font-sans text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-95 shadow-md shadow-[#B4B0FF]/15"
+          >
+            <PlusCircle className="w-4 h-4" />
+            <span className="hidden sm:inline">Create Note</span>
+          </button>
+
+          <button
             onClick={handleRefresh}
             disabled={isBusy}
             className="min-h-[44px] px-3 bg-[#1C1C1E] hover:bg-[#232326] text-gray-400 hover:text-white rounded-xl border border-[#232326] transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 active:scale-95"
             title="Sync notes from cloud"
           >
             <RefreshCw className={`w-4 h-4 ${isBusy ? 'animate-spin text-[#4FD1C5]' : ''}`} />
-            <span className="font-sans text-xs font-semibold">
+            <span className="font-sans text-xs font-semibold hidden md:inline">
               {isBusy ? 'Syncing…' : 'Refresh'}
             </span>
           </button>
@@ -497,6 +576,79 @@ export function Archive({ notes, loading, onRefresh, onNavigateToCreate, onDelet
                 className="w-full sm:w-auto min-h-[44px] px-5 py-2 bg-[#B4B0FF] hover:bg-[#B4B0FF]/90 text-[#0A0A0B] font-sans text-xs font-semibold rounded-xl transition-all cursor-pointer active:scale-[0.98]"
               >
                 Close Note
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Create Note Modal */}
+      {showCreateModal && (
+        <div className="fixed inset-0 bg-[#0A0A0B]/85 backdrop-blur-md z-[60] flex items-end sm:items-center justify-center p-0 sm:p-4">
+          <div className="w-full sm:max-w-2xl bg-[#1C1C1E] border border-[#232326] sm:rounded-2xl rounded-t-2xl shadow-2xl relative flex flex-col"
+               style={{ maxHeight: 'calc(92dvh - env(safe-area-inset-bottom, 0px))' }}>
+            
+            <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-[#B4B0FF] to-[#4FD1C5] rounded-t-2xl" />
+            <div className="flex justify-center pt-3 pb-1 md:hidden"><div className="w-10 h-1 bg-gray-600 rounded-full" /></div>
+
+            <div className="flex justify-between items-center px-6 pb-4 pt-3 border-b border-[#232326]">
+              <h3 className="font-sans text-lg font-bold text-white tracking-tight leading-snug">Create New Note</h3>
+              <button onClick={() => setShowCreateModal(false)} className="min-h-[44px] min-w-[44px] flex items-center justify-center text-gray-400 hover:text-white bg-[#0A0A0B] rounded-xl border border-[#232326] transition-all cursor-pointer">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4 custom-scrollbar">
+              <div className="flex flex-col space-y-1">
+                <label className="font-sans text-xs font-medium text-gray-400">Judul Catatan</label>
+                <input type="text" value={noteTitle} onChange={(e) => setNoteTitle(e.target.value)} placeholder="misal: Q3 Financial Strategy Draft" className="w-full bg-[#0A0A0B] border border-[#232326] rounded-xl px-4 py-3 text-xs text-white placeholder-gray-600 focus:border-[#B4B0FF] outline-none" />
+              </div>
+              <div className="flex flex-col space-y-1">
+                <label className="font-sans text-xs font-medium text-gray-400">Kategori Catatan</label>
+                <input type="text" value={noteCategory} onChange={(e) => setNoteCategory(e.target.value)} placeholder="misal: Tech, Finance" className="w-full bg-[#0A0A0B] border border-[#232326] rounded-xl px-4 py-3 text-xs text-white placeholder-gray-600 focus:border-[#B4B0FF] outline-none" />
+              </div>
+              <div className="flex flex-col space-y-1">
+                <label className="font-sans text-xs font-medium text-gray-400">Isi Catatan</label>
+                <textarea value={noteContent} onChange={(e) => setNoteContent(e.target.value)} placeholder="Ketik draf pikiran penting..." rows={5} className="w-full bg-[#0A0A0B] border border-[#232326] rounded-xl px-4 py-3 text-xs text-white placeholder-gray-600 focus:border-[#B4B0FF] resize-none outline-none" />
+              </div>
+              
+              <div className="flex flex-col space-y-2">
+                <label className="font-sans text-xs font-medium text-gray-400 flex justify-between items-center">
+                  <span>Tautan Referensi (URL Link)</span>
+                  <button type="button" onClick={handleAddUrlField} className="text-[#B4B0FF] hover:text-white text-xs font-bold cursor-pointer">+ Tambah</button>
+                </label>
+                {noteUrls.map((url, index) => (
+                  <div key={index} className="relative flex items-center gap-2">
+                    <div className="relative flex-1">
+                      <LinkIcon className="w-4 h-4 text-gray-500 absolute left-3 top-1/2 -translate-y-1/2" />
+                      <input type="url" value={url} onChange={(e) => handleUrlChange(index, e.target.value)} placeholder="https://..." className="w-full pl-9 bg-[#0A0A0B] border border-[#232326] rounded-xl px-4 py-3 text-xs text-white placeholder-gray-600 focus:border-[#B4B0FF] outline-none" />
+                    </div>
+                    {noteUrls.length > 1 && (
+                      <button type="button" onClick={() => handleRemoveUrl(index)} className="text-red-400 hover:text-red-300 p-2 text-xs font-bold cursor-pointer">✕</button>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex flex-col space-y-1">
+                <label className="font-sans text-xs font-medium text-gray-400">Lampiran File</label>
+                <div onDragOver={handleDragOver} onDrop={handleDrop} onClick={() => fileInputRef.current?.click()} className="border-2 border-dashed border-[#232326] hover:border-[#B4B0FF]/60 cursor-pointer rounded-xl p-4 flex flex-col items-center text-center transition-all bg-[#0A0A0B]/10">
+                  <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" multiple />
+                  <UploadCloud className="w-6 h-6 text-gray-500 mb-2" />
+                  <span className="font-sans text-xs font-semibold text-gray-300">
+                    {attachedFiles.length > 0 ? `${attachedFiles.length} File(s) Attached` : 'Click or Drop files here'}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="px-6 py-4 border-t border-[#232326]">
+              <button
+                onClick={handleSaveNote}
+                disabled={isSubmitting || !noteTitle.trim() || !noteContent.trim()}
+                className="w-full bg-[#B4B0FF] text-[#0A0A0B] py-3 rounded-xl font-sans text-sm font-bold active:scale-[0.99] transition-all disabled:opacity-50 cursor-pointer"
+              >
+                {isSubmitting ? 'Saving...' : 'Save Note'}
               </button>
             </div>
           </div>

@@ -26,6 +26,16 @@ export interface ExpenseData {
   notes?: string;
 }
 
+export interface Expense {
+  id: string;
+  amount: number;
+  category: string;
+  paymentMethod: string;
+  description: string;
+  notes?: string;
+  createdAt: string;
+}
+
 export interface Activity {
   id: string;
   title: string;
