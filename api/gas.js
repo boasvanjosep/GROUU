@@ -33,29 +33,9 @@ export default async function handler(req, res) {
     });
   }
 
-  // Jika Origin ada, host-nya harus cocok dengan host server.
-  if (origin) {
-    let originHost = '';
-    try { originHost = new URL(origin).host; } catch { /* invalid origin */ }
-    if (originHost !== selfHost) {
-      return sendJson(res, 403, {
-        success: false,
-        error: 'Akses ditolak: origin tidak sesuai dengan host aplikasi.'
-      });
-    }
-  }
-
-  // Jika Referer ada (terutama saat Origin tidak ada), host-nya harus cocok juga.
-  if (referer) {
-    let refererHost = '';
-    try { refererHost = new URL(referer).host; } catch { /* invalid referer */ }
-    if (refererHost !== selfHost) {
-      return sendJson(res, 403, {
-        success: false,
-        error: 'Akses ditolak: referer tidak sesuai dengan host aplikasi.'
-      });
-    }
-  }
+  // Host-matching checks removed to prevent false positives in Vercel production
+  // Vercel can sometimes route requests through internal domains or x-forwarded-host
+  // causing mismatch between origin/referer and req.headers['host'].
 
   if (req.method === 'OPTIONS') {
     res.setHeader('Allow', 'POST, OPTIONS');
