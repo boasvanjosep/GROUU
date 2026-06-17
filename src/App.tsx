@@ -263,6 +263,9 @@ export default function App() {
   const currentYear = new Date().getFullYear();
   const monthlyExpenseAmount = expenses
     .filter(e => {
+      // Exclude INITIAL_EXPENSES (dummy data): IDs 'e1','e2','e3'
+      // User-created expenses always have IDs starting with 'e_'
+      if (!e.id.startsWith('e_')) return false;
       if (!e.createdAt) return false;
       const d = new Date(e.createdAt);
       return d.getMonth() === currentMonth && d.getFullYear() === currentYear;

@@ -352,7 +352,7 @@ export function Archive({ notes, loading, onRefresh, onAddNote, onDeleteNote }: 
               : "Your physical vault archive is empty. Keep track of inspiration, bookmarks, and papers instantly."}
           </p>
           <button
-            onClick={onNavigateToCreate}
+            onClick={() => setShowCreateModal(true)}
             className="min-h-[44px] px-4 py-2 bg-[#B4B0FF] hover:bg-[#B4B0FF]/90 text-[#0A0A0B] font-sans text-xs font-semibold rounded-xl flex items-center justify-center gap-1.5 shadow-md shadow-[#B4B0FF]/15 transition-all"
           >
             <PlusCircle className="w-4 h-4" /> Create Note Draft
