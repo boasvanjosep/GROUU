@@ -475,10 +475,13 @@ export function Tasks({ tasks, loading, onRefresh, onAddTask, onDeleteTask }: Ta
       {/* Create Task Modal */}
       {showCreateModal && (
         <div className="fixed inset-0 bg-[#0A0A0B]/85 backdrop-blur-md z-[100] flex items-center justify-center p-4">
-          <div className="w-full max-w-md bg-[#1C1C1E] border border-[#232326] rounded-2xl shadow-2xl relative flex flex-col">
+          <div 
+            className="w-full max-w-md bg-[#1C1C1E] border border-[#232326] rounded-2xl shadow-2xl relative flex flex-col"
+            style={{ maxHeight: 'calc(92dvh - env(safe-area-inset-bottom, 0px))' }}
+          >
             <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-[#B4B0FF] to-[#4FD1C5] rounded-t-2xl" />
             
-            <div className="flex justify-between items-center p-5 border-b border-[#232326]">
+            <div className="flex justify-between items-center p-5 border-b border-[#232326] shrink-0">
               <h3 className="font-sans text-lg font-bold text-white">Create New Task</h3>
               <button
                 onClick={() => setShowCreateModal(false)}
@@ -488,7 +491,7 @@ export function Tasks({ tasks, loading, onRefresh, onAddTask, onDeleteTask }: Ta
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="p-5 space-y-4">
+            <form onSubmit={handleSubmit} className="p-5 space-y-4 overflow-y-auto flex-1">
               <div className="space-y-1">
                 <label className="text-xs text-gray-400 font-sans">Task Name</label>
                 <input

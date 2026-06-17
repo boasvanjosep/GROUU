@@ -14,6 +14,7 @@ interface DashboardProps {
     schedulesCount: number;
     notesCount: number;
     driveFilesCount: number;
+    activeTasksCount?: number;
   };
   syncing?: boolean;
   lastSync?: Date | null;
@@ -83,20 +84,24 @@ export function Dashboard({ onNavigate, totals, syncing, lastSync }: DashboardPr
             <span>{syncing ? 'Syncing\u2026' : syncLabel}</span>
           </div>
         </div>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 bg-[#1C1C1E] rounded-2xl border border-[#232326] p-5">
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 bg-[#1C1C1E] rounded-2xl border border-[#232326] p-5">
           <div className="p-2 border-r border-[#232326]">
             <span className="block font-sans text-[11px] text-gray-500 uppercase tracking-widest font-semibold">Total Pengeluaran</span>
             <span className="text-sm font-semibold text-[#4FD1C5]">{formattedAmount}</span>
           </div>
-          <div className="p-2 border-r border-[#232326] pl-4">
+          <div className="p-2 border-[#232326] pl-4 lg:border-r">
+            <span className="block font-sans text-[11px] text-gray-500 uppercase tracking-widest font-semibold">Task Aktif</span>
+            <span className="text-sm font-semibold text-white">{totals.activeTasksCount || 0} task</span>
+          </div>
+          <div className="p-2 border-r border-[#232326] lg:pl-4">
             <span className="block font-sans text-[11px] text-gray-500 uppercase tracking-widest font-semibold">Transaksi Ledger</span>
             <span className="text-sm font-semibold text-white">{totals.expensesCount} item</span>
           </div>
-          <div className="p-2 border-r border-[#232326] pl-4">
+          <div className="p-2 border-[#232326] pl-4 lg:border-r">
             <span className="block font-sans text-[11px] text-gray-500 uppercase tracking-widest font-semibold">Jadwal Aktif</span>
             <span className="text-sm font-semibold text-white">{totals.schedulesCount} agenda</span>
           </div>
-          <div className="p-2 pl-4">
+          <div className="p-2 lg:pl-4 col-span-2 lg:col-span-1">
             <span className="block font-sans text-[11px] text-gray-500 uppercase tracking-widest font-semibold">Catatan Vault</span>
             <span className="text-sm font-semibold text-white">{totals.notesCount} draf</span>
             <span className="block text-[10px] font-medium text-gray-500 mt-0.5">{totals.driveFilesCount} file Drive</span>

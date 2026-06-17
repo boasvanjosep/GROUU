@@ -257,6 +257,8 @@ export default function App() {
     }
   };
 
+  const activeTasksCount = tasks.filter(t => t.progress !== 'Done').length;
+
   const totals = liveStats
     ? {
         expensesCount: liveStats.totalLedgerItems,
@@ -264,6 +266,7 @@ export default function App() {
         schedulesCount: liveStats.totalSchedules,
         notesCount: liveStats.totalNotes,
         driveFilesCount: liveStats.totalDriveFiles,
+        activeTasksCount,
       }
     : {
         expensesCount: 0,
@@ -271,6 +274,7 @@ export default function App() {
         schedulesCount: 0,
         notesCount: 0,
         driveFilesCount: 0,
+        activeTasksCount,
       };
 
   const handleDashboardShortcutNavigate = (
