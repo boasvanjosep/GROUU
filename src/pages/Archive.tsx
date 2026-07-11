@@ -408,38 +408,50 @@ export function Archive({ notes, loading, onRefresh, onAddNote, onDeleteNote }: 
               {/* Attachments / Links footer */}
               {(note.url || note.attachmentName || note.driveFileUrl || (note.urls && note.urls.length > 0) || (note.attachments && note.attachments.length > 0)) && (
                 <div className="pt-3 border-t border-[#232326] flex flex-col gap-2 mt-2 relative z-10">
-                  {/* Note URL — FIX: pakai <a> native via AttachmentLink */}
-                  {note.url && (
-                    <AttachmentLink
-                      url={note.url}
-                      label={note.url}
-                      icon="link"
-                      className="inline-flex items-center gap-2 text-xs text-[#4FD1C5] min-h-[44px] px-1 -mx-1 active:opacity-70"
-                    />
-                  )}
-                  {note.urls?.filter(u => u).map((u, i) => (
-                    <AttachmentLink
-                      key={`url-${i}`}
-                      url={u}
-                      label={u}
-                      icon="link"
-                      className="inline-flex items-center gap-2 text-xs text-[#4FD1C5] min-h-[44px] px-1 -mx-1 active:opacity-70"
-                    />
-                  ))}
-
-                  {/* Drive file attachment — FIX: pakai <a> native */}
-                  {(note.attachmentName || note.driveFileUrl) && (() => {
-                    const fileUrl = note.driveFileUrl || note.attachmentUrl || '';
-                    const fileName = note.attachmentName || 'View Attachment';
-                    if (!fileUrl) return null;
-                    return (
+                  {/* Note URL — FIX: handle comma-separated URLs */}
+                  {(() => {
+                    const links = new Set<string>();
+                    if (note.url) note.url.split(',').forEach(u => links.add(u.trim()));
+                    if (note.urls) note.urls.forEach(u => links.add(u.trim()));
+                    
+                    return Array.from(links).filter(Boolean).map((u, i) => (
                       <AttachmentLink
-                        url={fileUrl}
-                        label={fileName}
-                        icon="file"
-                        className="inline-flex items-center gap-2 text-xs text-gray-300 hover:text-[#B4B0FF] bg-[#0A0A0B]/70 border border-[#232326] px-3 py-2.5 rounded-xl w-full transition-colors cursor-pointer min-h-[44px] active:scale-[0.98]"
+                        key={`url-${i}`}
+                        url={u}
+                        label={u}
+                        icon="link"
+                        className="inline-flex items-center gap-2 text-xs text-[#4FD1C5] min-h-[44px] px-1 -mx-1 active:opacity-70"
                       />
-                    );
+                    ));
+                  })()}
+
+                  {/* Drive file attachment — FIX: handle comma-separated drive URLs */}
+                  {(() => {
+                    const fileUrls: string[] = [];
+                    if (note.driveFileUrl) {
+                      fileUrls.push(...note.driveFileUrl.split(',').map(s => s.trim()).filter(Boolean));
+                    } else if (note.attachmentUrl) {
+                      fileUrls.push(...note.attachmentUrl.split(',').map(s => s.trim()).filter(Boolean));
+                    }
+
+                    if (fileUrls.length === 0) return null;
+
+                    const fileNames = note.attachmentName
+                      ? note.attachmentName.split(',').map(s => s.trim()).filter(Boolean)
+                      : [];
+
+                    return fileUrls.map((fUrl, i) => {
+                      const fName = fileNames[i] || (fileUrls.length > 1 ? `View Attachment ${i + 1}` : 'View Attachment');
+                      return (
+                        <AttachmentLink
+                          key={`file-${i}`}
+                          url={fUrl}
+                          label={fName}
+                          icon="file"
+                          className="inline-flex items-center gap-2 text-xs text-gray-300 hover:text-[#B4B0FF] bg-[#0A0A0B]/70 border border-[#232326] px-3 py-2.5 rounded-xl w-full transition-colors cursor-pointer min-h-[44px] active:scale-[0.98]"
+                        />
+                      );
+                    });
                   })()}
 
                   {/* Local attachments */}
@@ -528,36 +540,48 @@ export function Archive({ notes, loading, onRefresh, onAddNote, onDeleteNote }: 
             {/* Modal footer: links/attachments */}
             <div className="px-6 pt-4 pb-5 border-t border-[#232326] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div className="flex flex-wrap gap-2">
-                {selectedNote.url && (
-                  <AttachmentLink
-                    url={selectedNote.url}
-                    label={selectedNote.url}
-                    icon="link"
-                    className="inline-flex items-center gap-1.5 text-xs text-[#4FD1C5] bg-[#0A0A0B]/50 border border-[#232326] px-3 py-2.5 rounded-xl min-h-[44px] active:scale-[0.98]"
-                  />
-                )}
-                {selectedNote.urls?.filter(u => u).map((u, i) => (
-                  <AttachmentLink
-                    key={`modal-url-${i}`}
-                    url={u}
-                    label={u}
-                    icon="link"
-                    className="inline-flex items-center gap-1.5 text-xs text-[#4FD1C5] bg-[#0A0A0B]/50 border border-[#232326] px-3 py-2.5 rounded-xl min-h-[44px] active:scale-[0.98]"
-                  />
-                ))}
-
-                {(selectedNote.attachmentName || selectedNote.driveFileUrl) && (() => {
-                  const fileUrl = selectedNote.driveFileUrl || selectedNote.attachmentUrl || '';
-                  const fileName = selectedNote.attachmentName || 'View Attachment';
-                  if (!fileUrl) return null;
-                  return (
+                {(() => {
+                  const links = new Set<string>();
+                  if (selectedNote.url) selectedNote.url.split(',').forEach(u => links.add(u.trim()));
+                  if (selectedNote.urls) selectedNote.urls.forEach(u => links.add(u.trim()));
+                  
+                  return Array.from(links).filter(Boolean).map((u, i) => (
                     <AttachmentLink
-                      url={fileUrl}
-                      label={fileName}
-                      icon="file"
-                      className="inline-flex items-center gap-2 text-xs text-gray-300 hover:text-[#B4B0FF] bg-[#0A0A0B]/50 border border-[#232326] px-3 py-2.5 rounded-xl transition-colors cursor-pointer min-h-[44px] active:scale-[0.98]"
+                      key={`modal-url-${i}`}
+                      url={u}
+                      label={u}
+                      icon="link"
+                      className="inline-flex items-center gap-1.5 text-xs text-[#4FD1C5] bg-[#0A0A0B]/50 border border-[#232326] px-3 py-2.5 rounded-xl min-h-[44px] active:scale-[0.98]"
                     />
-                  );
+                  ));
+                })()}
+
+                {(() => {
+                  const fileUrls: string[] = [];
+                  if (selectedNote.driveFileUrl) {
+                    fileUrls.push(...selectedNote.driveFileUrl.split(',').map(s => s.trim()).filter(Boolean));
+                  } else if (selectedNote.attachmentUrl) {
+                    fileUrls.push(...selectedNote.attachmentUrl.split(',').map(s => s.trim()).filter(Boolean));
+                  }
+
+                  if (fileUrls.length === 0) return null;
+
+                  const fileNames = selectedNote.attachmentName
+                    ? selectedNote.attachmentName.split(',').map(s => s.trim()).filter(Boolean)
+                    : [];
+
+                  return fileUrls.map((fUrl, i) => {
+                    const fName = fileNames[i] || (fileUrls.length > 1 ? `View Attachment ${i + 1}` : 'View Attachment');
+                    return (
+                      <AttachmentLink
+                        key={`modal-file-${i}`}
+                        url={fUrl}
+                        label={fName}
+                        icon="file"
+                        className="inline-flex items-center gap-2 text-xs text-gray-300 hover:text-[#B4B0FF] bg-[#0A0A0B]/50 border border-[#232326] px-3 py-2.5 rounded-xl transition-colors cursor-pointer min-h-[44px] active:scale-[0.98]"
+                      />
+                    );
+                  });
                 })()}
 
                 {selectedNote.attachments?.map((att, i) => (

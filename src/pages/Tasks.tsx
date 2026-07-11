@@ -349,17 +349,28 @@ export function Tasks({ tasks, loading, onRefresh, onAddTask, onDeleteTask }: Ta
                     />
                   )}
                   {(() => {
-                    const fileUrl = task.driveFileUrl || task.attachmentUrl || '';
-                    const fileName = task.attachmentName || 'View Attachment';
-                    if (!fileUrl) return null;
-                    return (
-                      <AttachmentLink
-                        url={fileUrl}
-                        label={fileName}
-                        icon="file"
-                        className="inline-flex items-center gap-2 text-xs text-gray-300 hover:text-[#B4B0FF] bg-[#0A0A0B]/70 border border-[#232326] px-3 py-2.5 rounded-xl w-full transition-colors cursor-pointer min-h-[44px] active:scale-[0.98]"
-                      />
-                    );
+                    const fileUrls: string[] = [];
+                    if (task.driveFileUrl) {
+                      fileUrls.push(...task.driveFileUrl.split(',').map(s => s.trim()).filter(Boolean));
+                    } else if (task.attachmentUrl) {
+                      fileUrls.push(...task.attachmentUrl.split(',').map(s => s.trim()).filter(Boolean));
+                    }
+                    if (fileUrls.length === 0) return null;
+                    
+                    const fileNames = task.attachmentName ? task.attachmentName.split(',').map(s => s.trim()).filter(Boolean) : [];
+                    
+                    return fileUrls.map((fUrl, i) => {
+                      const fName = fileNames[i] || (fileUrls.length > 1 ? `View Attachment ${i + 1}` : 'View Attachment');
+                      return (
+                        <AttachmentLink
+                          key={`file-${i}`}
+                          url={fUrl}
+                          label={fName}
+                          icon="file"
+                          className="inline-flex items-center gap-2 text-xs text-gray-300 hover:text-[#B4B0FF] bg-[#0A0A0B]/70 border border-[#232326] px-3 py-2.5 rounded-xl w-full transition-colors cursor-pointer min-h-[44px] active:scale-[0.98]"
+                        />
+                      );
+                    });
                   })()}
                 </div>
               )}
@@ -447,17 +458,28 @@ export function Tasks({ tasks, loading, onRefresh, onAddTask, onDeleteTask }: Ta
                 )}
                 
                 {(selectedTask.attachmentName || selectedTask.driveFileUrl || selectedTask.attachmentUrl) && (() => {
-                  const fileUrl = selectedTask.driveFileUrl || selectedTask.attachmentUrl || '';
-                  const fileName = selectedTask.attachmentName || 'View Attachment';
-                  if (!fileUrl) return null;
-                  return (
-                    <AttachmentLink
-                      url={fileUrl}
-                      label={fileName}
-                      icon="file"
-                      className="inline-flex items-center gap-2 text-xs text-gray-300 hover:text-[#B4B0FF] bg-[#0A0A0B]/50 border border-[#232326] px-3 py-2.5 rounded-xl transition-colors cursor-pointer min-h-[44px] active:scale-[0.98]"
-                    />
-                  );
+                  const fileUrls: string[] = [];
+                  if (selectedTask.driveFileUrl) {
+                    fileUrls.push(...selectedTask.driveFileUrl.split(',').map(s => s.trim()).filter(Boolean));
+                  } else if (selectedTask.attachmentUrl) {
+                    fileUrls.push(...selectedTask.attachmentUrl.split(',').map(s => s.trim()).filter(Boolean));
+                  }
+                  if (fileUrls.length === 0) return null;
+
+                  const fileNames = selectedTask.attachmentName ? selectedTask.attachmentName.split(',').map(s => s.trim()).filter(Boolean) : [];
+                  
+                  return fileUrls.map((fUrl, i) => {
+                    const fName = fileNames[i] || (fileUrls.length > 1 ? `View Attachment ${i + 1}` : 'View Attachment');
+                    return (
+                      <AttachmentLink
+                        key={`modal-file-${i}`}
+                        url={fUrl}
+                        label={fName}
+                        icon="file"
+                        className="inline-flex items-center gap-2 text-xs text-gray-300 hover:text-[#B4B0FF] bg-[#0A0A0B]/50 border border-[#232326] px-3 py-2.5 rounded-xl transition-colors cursor-pointer min-h-[44px] active:scale-[0.98]"
+                      />
+                    );
+                  });
                 })()}
               </div>
 
