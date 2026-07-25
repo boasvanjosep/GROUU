@@ -538,6 +538,7 @@ export const apiService = {
       try {
         const payload: Record<string, unknown> = {
           action: 'createSchedule',
+          id: newActivity.id,
           title: newActivity.title,
           date: newActivity.date,
           time: newActivity.time,
