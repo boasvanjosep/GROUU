@@ -141,10 +141,19 @@ export default function App() {
         .finally(() => setLoading(false));
     } else if (activeTab === 'tasks') {
       setLoading(true);
-      apiService.listTasks()
-        .then(dbTasks => { setTasks(dbTasks); })
-        .catch(() => {})
+      // Trigger LMS sync first (create/update/delete), then load fresh tasks
+      apiService.syncLms()
+        .then(lmsTasks => {
+          if (lmsTasks.length > 0) {
+            setTasks(lmsTasks);
+          } else {
+            // Fallback: if LMS URL not configured or sync returned empty, just list normally
+            return apiService.listTasks().then(dbTasks => setTasks(dbTasks));
+          }
+        })
+        .catch(() => apiService.listTasks().then(dbTasks => setTasks(dbTasks)).catch(() => {}))
         .finally(() => setLoading(false));
+
     } else if (activeTab === 'dashboard') {
       // Silently fetch fresh expenses + schedules for Dashboard stats & calendar
       Promise.all([apiService.listExpenses(), apiService.listSchedules()])

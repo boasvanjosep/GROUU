@@ -871,5 +871,28 @@ export const apiService = {
     }
 
     return updatedTask;
+  },
+
+  /**
+   * Triggers the LMS iCal sync on GAS on demand, then returns the fresh tasks list.
+   * Called when the Tasks tab is activated so the user always sees up-to-date data.
+   */
+  syncLms: async (): Promise<Task[]> => {
+    const config = getAppConfig();
+    if (!isGasActive(config.gasUrl)) return [];
+    try {
+      // Fire the sync — GAS will create/update/delete tasks from the LMS feed
+      await requestGas({ action: 'syncLms' });
+      // Then fetch the fresh task list after sync is complete
+      const res = await requestGas<{ data: Task[] }>({ action: 'listTasks' });
+      if (res && Array.isArray((res as any).data)) {
+        const tasks = (res as any).data as Task[];
+        localStorage.setItem(STORAGE_KEYS.TASKS, JSON.stringify(tasks));
+        return tasks;
+      }
+    } catch (err) {
+      console.warn('LMS sync failed:', err);
+    }
+    return [];
   }
 };
