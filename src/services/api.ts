@@ -425,6 +425,53 @@ export const apiService = {
     return true;
   },
 
+  updateNote: async (
+    id: string,
+    updates: Partial<Omit<Note, 'id' | 'createdAt'>>,
+    files?: { fileName: string; fileData: string }[],
+    urls?: string[]
+  ): Promise<Note | null> => {
+    const config = getAppConfig();
+    const currentNotes = getFallbackData<Note>(STORAGE_KEYS.NOTES, INITIAL_NOTES);
+    const index = currentNotes.findIndex(n => n.id === id);
+    if (index === -1) return null;
+
+    const updatedNote = { ...currentNotes[index], ...updates };
+    
+    if (urls && urls.length > 0) {
+      updatedNote.urls = urls;
+    }
+
+    if (files && files.length > 0) {
+      updatedNote.attachments = files.map(f => ({
+        name: f.fileName,
+        url: `data:${getMimeType(f.fileName)};base64,${f.fileData}`
+      }));
+    }
+
+    currentNotes[index] = updatedNote;
+    localStorage.setItem(STORAGE_KEYS.NOTES, JSON.stringify(currentNotes));
+
+    if (isGasActive(config.gasUrl)) {
+      try {
+        const payload: Record<string, unknown> = {
+          action: 'updateNote',
+          id: id,
+          title: updatedNote.title,
+          category: updatedNote.category || 'General',
+          content: updatedNote.content,
+          urls: updatedNote.urls || [],
+          files: files || []
+        };
+        await requestGas(payload);
+      } catch (err) {
+        console.warn("GAS updateNote erred, logged locally:", err);
+      }
+    }
+
+    return updatedNote;
+  },
+
   // --- EXPENSE LEDGER ---
   listExpenses: async (): Promise<Expense[]> => {
     const config = getAppConfig();
@@ -574,6 +621,64 @@ export const apiService = {
     return newActivity;
   },
 
+  deleteSchedule: async (id: string): Promise<boolean> => {
+    const config = getAppConfig();
+
+    const currentSchedules = getFallbackData<Activity>(STORAGE_KEYS.SCHEDULE, INITIAL_SCHEDULE);
+    const updatedSchedules = currentSchedules.filter(s => s.id !== id);
+    localStorage.setItem(STORAGE_KEYS.SCHEDULE, JSON.stringify(updatedSchedules));
+
+    const deletedIds: string[] = JSON.parse(localStorage.getItem(DELETED_KEYS.SCHEDULE) || '[]');
+    if (!deletedIds.includes(id)) {
+      deletedIds.push(id);
+      localStorage.setItem(DELETED_KEYS.SCHEDULE, JSON.stringify(deletedIds));
+    }
+
+    if (isGasActive(config.gasUrl)) {
+      try {
+        await requestGas({ action: 'deleteSchedule', id });
+      } catch (err) {
+        console.warn("GAS deleteSchedule failed, updated local cache only:", err);
+      }
+    }
+
+    return true;
+  },
+
+  updateSchedule: async (id: string, updates: Partial<Omit<Activity, 'id' | 'createdAt'>>): Promise<Activity | null> => {
+    const config = getAppConfig();
+    const currentList = getFallbackData<Activity>(STORAGE_KEYS.SCHEDULE, INITIAL_SCHEDULE);
+    const index = currentList.findIndex(s => s.id === id);
+    if (index === -1) return null;
+
+    const updatedActivity = { ...currentList[index], ...updates };
+    currentList[index] = updatedActivity;
+    localStorage.setItem(STORAGE_KEYS.SCHEDULE, JSON.stringify(currentList));
+
+    if (isGasActive(config.gasUrl)) {
+      try {
+        const payload: Record<string, unknown> = {
+          action: 'updateSchedule',
+          id: id,
+          title: updatedActivity.title,
+          date: updatedActivity.date,
+          time: updatedActivity.time,
+          endTime: updatedActivity.endTime || '',
+          isAllDay: updatedActivity.isAllDay,
+          reminderMinutes: updatedActivity.reminderMinutes,
+          location: updatedActivity.location,
+          notes: updatedActivity.notes || ''
+        };
+
+        await requestGas(payload);
+      } catch (err) {
+        console.warn("GAS updateSchedule erred, logged locally:", err);
+      }
+    }
+
+    return updatedActivity;
+  },
+
   // --- TASKS ---
   listTasks: async (): Promise<Task[]> => {
     const config = getAppConfig();
@@ -702,5 +807,59 @@ export const apiService = {
     }
 
     return true;
+  },
+
+  updateTask: async (
+    id: string,
+    updates: Partial<Omit<Task, 'id' | 'createdAt'>>,
+    file?: { fileName: string; fileData: string }
+  ): Promise<Task | null> => {
+    const config = getAppConfig();
+    const currentTasks = getFallbackData<Task>(STORAGE_KEYS.TASKS, INITIAL_TASKS);
+    const index = currentTasks.findIndex(t => t.id === id);
+    if (index === -1) return null;
+
+    const updatedTask = { ...currentTasks[index], ...updates };
+
+    if (file) {
+      updatedTask.attachmentName = file.fileName;
+      updatedTask.attachmentUrl = `data:${getMimeType(file.fileName)};base64,${file.fileData}`;
+    }
+
+    currentTasks[index] = updatedTask;
+    localStorage.setItem(STORAGE_KEYS.TASKS, JSON.stringify(currentTasks));
+
+    if (isGasActive(config.gasUrl)) {
+      try {
+        const payload: any = {
+          action: 'updateTask',
+          id: id,
+          name: updatedTask.name,
+          subject: updatedTask.subject,
+          progress: updatedTask.progress,
+          deadline: updatedTask.deadline,
+          time: updatedTask.time || '',
+          reminderMinutes: updatedTask.reminderMinutes !== undefined ? updatedTask.reminderMinutes : 10,
+          url: updatedTask.urls && updatedTask.urls.length > 0 ? updatedTask.urls.join(', ') : (updatedTask.url || ''),
+        };
+        if (file) {
+          payload.fileData = file.fileData;
+          payload.fileName = file.fileName;
+        }
+
+        const res = await requestGas<{data: {driveFileUrl?: string, driveFileIds?: string}}>(payload);
+        if (res && res.data && (res.data.driveFileUrl || res.data.driveFileIds)) {
+          if (res.data.driveFileUrl) updatedTask.driveFileUrl = res.data.driveFileUrl;
+          if (res.data.driveFileIds) updatedTask.driveFileIds = res.data.driveFileIds;
+          
+          currentTasks[index] = updatedTask;
+          localStorage.setItem(STORAGE_KEYS.TASKS, JSON.stringify(currentTasks));
+        }
+      } catch (err) {
+        console.warn("GAS updateTask erred, logged locally:", err);
+      }
+    }
+
+    return updatedTask;
   }
 };

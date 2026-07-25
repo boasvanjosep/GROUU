@@ -8,14 +8,16 @@ interface TasksProps {
   onRefresh: () => void;
   onAddTask: (data: Omit<Task, 'id' | 'createdAt'>, file?: { fileName: string; fileData: string }) => Promise<boolean>;
   onDeleteTask: (id: string) => Promise<boolean>;
+  onUpdateTask?: (id: string, updates: Partial<Omit<Task, 'id' | 'createdAt'>>, file?: { fileName: string; fileData: string }) => Promise<boolean>;
 }
 
-export function Tasks({ tasks, loading, onRefresh, onAddTask, onDeleteTask }: TasksProps) {
+export function Tasks({ tasks, loading, onRefresh, onAddTask, onDeleteTask, onUpdateTask }: TasksProps) {
   const [search, setSearch] = useState('');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
 
   // Form State
   const [newTask, setNewTask] = useState<{
@@ -303,18 +305,32 @@ export function Tasks({ tasks, loading, onRefresh, onAddTask, onDeleteTask }: Ta
                       {task.progress}
                     </span>
                   </div>
-                  <button
-                    onClick={async (e) => {
-                      e.stopPropagation();
-                      if (window.confirm("Are you sure you want to delete this task?")) {
-                        await onDeleteTask(task.id);
-                      }
-                    }}
-                    className="min-h-[44px] min-w-[44px] flex items-center justify-center text-gray-500 hover:text-red-400 bg-transparent rounded-xl transition-colors z-40 relative -mr-2 -mt-1"
-                    title="Delete Task"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                  <div className="flex gap-2 relative z-40">
+                    {onUpdateTask && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setEditingTask(task);
+                        }}
+                        className="min-h-[44px] min-w-[44px] flex items-center justify-center text-gray-500 hover:text-white bg-transparent rounded-xl transition-colors -mr-2 -mt-1"
+                        title="Edit Task"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-edit-2 w-4 h-4"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
+                      </button>
+                    )}
+                    <button
+                      onClick={async (e) => {
+                        e.stopPropagation();
+                        if (window.confirm("Are you sure you want to delete this task?")) {
+                          await onDeleteTask(task.id);
+                        }
+                      }}
+                      className="min-h-[44px] min-w-[44px] flex items-center justify-center text-gray-500 hover:text-red-400 bg-transparent rounded-xl transition-colors -mr-2 -mt-1"
+                      title="Delete Task"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
 
                 <h3 className="font-sans text-sm font-semibold text-white mb-2 line-clamp-2">
@@ -647,6 +663,70 @@ export function Tasks({ tasks, loading, onRefresh, onAddTask, onDeleteTask }: Ta
           </div>
         </div>
       )}
+
+      {/* Edit Task Modal */}
+      {editingTask && onUpdateTask && (
+        <div className="fixed inset-0 bg-[#0A0A0B]/85 backdrop-blur-md z-[60] flex items-end sm:items-center justify-center p-0 sm:p-4">
+          <div className="w-full sm:max-w-2xl bg-[#1C1C1E] border border-[#232326] sm:rounded-2xl rounded-t-2xl shadow-2xl relative flex flex-col p-6"
+            style={{ maxHeight: 'calc(92dvh - env(safe-area-inset-bottom, 0px))' }}
+          >
+            <button onClick={() => setEditingTask(null)} className="absolute top-4 right-4 text-gray-500 hover:text-white transition-colors">
+              <X className="w-5 h-5" />
+            </button>
+            <h3 className="text-xl font-bold text-white mb-6">Edit Task</h3>
+            <form onSubmit={async (e) => {
+              e.preventDefault();
+              setIsSubmitting(true);
+              const formData = new FormData(e.currentTarget);
+              const updates: Partial<Task> = {
+                name: formData.get('name') as string,
+                subject: formData.get('subject') as string,
+                progress: formData.get('progress') as TaskProgress,
+                deadline: formData.get('deadline') as string,
+                time: formData.get('time') as string,
+              };
+              await onUpdateTask(editingTask.id, updates);
+              setIsSubmitting(false);
+              setEditingTask(null);
+            }} className="space-y-4 overflow-y-auto custom-scrollbar pr-2">
+              <div>
+                <label className="block text-xs font-semibold text-gray-400 mb-1.5 uppercase tracking-wide">Task Name</label>
+                <input name="name" defaultValue={editingTask.name} required className="w-full bg-[#0A0A0B] border border-[#232326] rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-[#4FD1C5] transition-colors" />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-gray-400 mb-1.5 uppercase tracking-wide">Subject</label>
+                  <input name="subject" defaultValue={editingTask.subject} required className="w-full bg-[#0A0A0B] border border-[#232326] rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-[#4FD1C5] transition-colors" />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-400 mb-1.5 uppercase tracking-wide">Status</label>
+                  <select name="progress" defaultValue={editingTask.progress} className="w-full bg-[#0A0A0B] border border-[#232326] rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-[#4FD1C5] transition-colors appearance-none">
+                    <option value="Not Yet">Not Yet</option>
+                    <option value="In Progress">In Progress</option>
+                    <option value="Done">Done</option>
+                  </select>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-gray-400 mb-1.5 uppercase tracking-wide">Date</label>
+                  <input type="date" name="deadline" defaultValue={editingTask.deadline} required className="w-full bg-[#0A0A0B] border border-[#232326] rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-[#4FD1C5] transition-colors [&::-webkit-calendar-picker-indicator]:invert" />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-400 mb-1.5 uppercase tracking-wide">Time</label>
+                  <input type="time" name="time" defaultValue={editingTask.time || ''} className="w-full bg-[#0A0A0B] border border-[#232326] rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-[#4FD1C5] transition-colors [&::-webkit-calendar-picker-indicator]:invert" />
+                </div>
+              </div>
+              <div className="pt-4">
+                <button type="submit" disabled={isSubmitting} className="w-full bg-[#4FD1C5] hover:bg-[#4FD1C5]/90 text-[#0A0A0B] font-bold py-3.5 rounded-xl transition-all disabled:opacity-50">
+                  {isSubmitting ? 'Saving...' : 'Save Changes'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

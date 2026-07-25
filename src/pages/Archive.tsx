@@ -4,7 +4,7 @@
  */
 
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
-import { Search, RefreshCw, ExternalLink, Paperclip, Grid, List, AlertCircle, PlusCircle, X, Trash2, Link as LinkIcon, UploadCloud } from 'lucide-react';
+import { Search, RefreshCw, ExternalLink, Paperclip, Grid, List, AlertCircle, PlusCircle, X, Trash2, Link as LinkIcon, UploadCloud, Edit2 } from 'lucide-react';
 import { Note } from '../types';
 
 interface ArchiveProps {
@@ -17,13 +17,20 @@ interface ArchiveProps {
     urls?: string[]
   ) => Promise<boolean>;
   onDeleteNote?: (id: string) => Promise<boolean>;
+  onUpdateNote?: (
+    id: string,
+    updates: Partial<Omit<Note, 'id' | 'createdAt'>>,
+    files?: { fileName: string; fileData: string }[],
+    urls?: string[]
+  ) => Promise<boolean>;
 }
 
-export function Archive({ notes, loading, onRefresh, onAddNote, onDeleteNote }: ArchiveProps) {
+export function Archive({ notes, loading, onRefresh, onAddNote, onDeleteNote, onUpdateNote }: ArchiveProps) {
   const [search, setSearch] = useState('');
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [selectedNote, setSelectedNote] = useState<Note | null>(null);
+  const [editingNote, setEditingNote] = useState<Note | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Form State for Create Note
@@ -380,20 +387,34 @@ export function Archive({ notes, loading, onRefresh, onAddNote, onDeleteNote }: 
                       </span>
                     )}
                   </div>
-                  {onDeleteNote && (
-                    <button
-                      onClick={async (e) => {
-                        e.stopPropagation();
-                        if (window.confirm("Are you sure you want to delete this note?")) {
-                          await onDeleteNote(note.id);
-                        }
-                      }}
-                      className="min-h-[44px] min-w-[44px] flex items-center justify-center text-gray-500 hover:text-red-400 bg-transparent rounded-xl transition-colors z-10 relative -mr-2 -mt-1"
-                      title="Delete Note"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  )}
+                  <div className="flex gap-2 relative z-10">
+                    {onUpdateNote && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setEditingNote(note);
+                        }}
+                        className="min-h-[44px] min-w-[44px] flex items-center justify-center text-gray-500 hover:text-white bg-transparent rounded-xl transition-colors -mr-2 -mt-1"
+                        title="Edit Note"
+                      >
+                        <Edit2 className="w-4 h-4" />
+                      </button>
+                    )}
+                    {onDeleteNote && (
+                      <button
+                        onClick={async (e) => {
+                          e.stopPropagation();
+                          if (window.confirm("Are you sure you want to delete this note?")) {
+                            await onDeleteNote(note.id);
+                          }
+                        }}
+                        className="min-h-[44px] min-w-[44px] flex items-center justify-center text-gray-500 hover:text-red-400 bg-transparent rounded-xl transition-colors -mr-2 -mt-1"
+                        title="Delete Note"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 <h3 className="font-sans text-sm font-semibold text-white group-hover:text-[#B4B0FF] transition-colors mb-2 line-clamp-1">
@@ -678,6 +699,56 @@ export function Archive({ notes, loading, onRefresh, onAddNote, onDeleteNote }: 
           </div>
         </div>
       )}
+
+      {/* Edit Note Modal */}
+      {editingNote && onUpdateNote && (
+        <div className="fixed inset-0 bg-[#0A0A0B]/85 backdrop-blur-md z-[60] flex items-end sm:items-center justify-center p-0 sm:p-4">
+          <div className="w-full sm:max-w-2xl bg-[#1C1C1E] border border-[#232326] sm:rounded-2xl rounded-t-2xl shadow-2xl relative flex flex-col p-6"
+            style={{ maxHeight: 'calc(92dvh - env(safe-area-inset-bottom, 0px))' }}
+          >
+            <button onClick={() => setEditingNote(null)} className="absolute top-4 right-4 text-gray-500 hover:text-white transition-colors">
+              <X className="w-5 h-5" />
+            </button>
+            <h3 className="text-xl font-bold text-white mb-6">Edit Note</h3>
+            <form onSubmit={async (e) => {
+              e.preventDefault();
+              setIsSubmitting(true);
+              const formData = new FormData(e.currentTarget);
+              const updates: Partial<Note> = {
+                title: formData.get('title') as string,
+                category: formData.get('category') as string,
+                content: formData.get('content') as string,
+              };
+              
+              // Only modifying textual fields for simplicity in edit mode
+              // Files and URLs would require more complex state management in edit modal
+              await onUpdateNote(editingNote.id, updates);
+              setIsSubmitting(false);
+              setEditingNote(null);
+            }} className="space-y-4 overflow-y-auto custom-scrollbar pr-2">
+              <div>
+                <label className="block text-xs font-semibold text-gray-400 mb-1.5 uppercase tracking-wide">Title</label>
+                <input name="title" defaultValue={editingNote.title} required className="w-full bg-[#0A0A0B] border border-[#232326] rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-[#4FD1C5] transition-colors" />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-400 mb-1.5 uppercase tracking-wide">Category</label>
+                <input name="category" defaultValue={editingNote.category || ''} required className="w-full bg-[#0A0A0B] border border-[#232326] rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-[#4FD1C5] transition-colors" />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-400 mb-1.5 uppercase tracking-wide">Content</label>
+                <textarea name="content" defaultValue={editingNote.content} required rows={5} className="w-full bg-[#0A0A0B] border border-[#232326] rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-[#4FD1C5] transition-colors custom-scrollbar" />
+              </div>
+              
+              <div className="pt-4">
+                <button type="submit" disabled={isSubmitting} className="w-full bg-[#B4B0FF] hover:bg-[#B4B0FF]/90 text-[#0A0A0B] font-bold py-3.5 rounded-xl transition-all disabled:opacity-50">
+                  {isSubmitting ? 'Saving...' : 'Save Changes'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

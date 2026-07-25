@@ -230,6 +230,56 @@ export default function App() {
     }
   };
 
+  const handleUpdateNote = async (
+    id: string,
+    updates: Partial<Omit<Note, 'id' | 'createdAt'>>,
+    files?: { fileName: string; fileData: string }[],
+    urls?: string[]
+  ): Promise<boolean> => {
+    try {
+      const updated = await apiService.updateNote(id, updates, files, urls);
+      if (updated) {
+        setNotes((prev) => prev.map(n => n.id === id ? updated : n));
+        triggerToast('Note successfully updated', 'success');
+        return true;
+      }
+      return false;
+    } catch (err) {
+      triggerToast('Error updating note', 'error');
+      return false;
+    }
+  };
+
+  const handleDeleteSchedule = async (id: string): Promise<boolean> => {
+    try {
+      const success = await apiService.deleteSchedule(id);
+      if (success) {
+        setSchedules((prev) => prev.filter(s => s.id !== id));
+        triggerToast('Schedule successfully deleted', 'success');
+        return true;
+      }
+      return false;
+    } catch (err) {
+      triggerToast('Error deleting schedule', 'error');
+      return false;
+    }
+  };
+
+  const handleUpdateSchedule = async (id: string, updates: Partial<Omit<Activity, 'id' | 'createdAt'>>): Promise<boolean> => {
+    try {
+      const updated = await apiService.updateSchedule(id, updates);
+      if (updated) {
+        setSchedules((prev) => prev.map(s => s.id === id ? updated : s));
+        triggerToast('Schedule successfully updated', 'success');
+        return true;
+      }
+      return false;
+    } catch (err) {
+      triggerToast('Error updating schedule', 'error');
+      return false;
+    }
+  };
+
   // Dedicated notes-only refresh — always fetches from GAS, used by Archive Refresh button
   const handleRefreshNotes = useCallback(async () => {
     setLoading(true);
@@ -283,6 +333,25 @@ export default function App() {
       return false;
     } catch (err) {
       triggerToast('Error deleting task', 'error');
+      return false;
+    }
+  };
+
+  const handleUpdateTask = async (
+    id: string,
+    updates: Partial<Omit<Task, 'id' | 'createdAt'>>,
+    file?: { fileName: string; fileData: string }
+  ): Promise<boolean> => {
+    try {
+      const updated = await apiService.updateTask(id, updates, file);
+      if (updated) {
+        setTasks((prev) => prev.map(t => t.id === id ? updated : t));
+        triggerToast('Task successfully updated', 'success');
+        return true;
+      }
+      return false;
+    } catch (err) {
+      triggerToast('Error updating task', 'error');
       return false;
     }
   };
@@ -398,6 +467,8 @@ export default function App() {
             syncing={statsSyncing}
             lastSync={lastStatsSync}
             schedules={schedules}
+            onDeleteSchedule={handleDeleteSchedule}
+            onUpdateSchedule={handleUpdateSchedule}
           />
         )}
 
@@ -408,6 +479,7 @@ export default function App() {
             onRefresh={handleRefreshNotes}
             onAddNote={handleAddNote}
             onDeleteNote={handleDeleteNote}
+            onUpdateNote={handleUpdateNote}
           />
         )}
 
@@ -418,6 +490,7 @@ export default function App() {
             onRefresh={handleRefreshTasks}
             onAddTask={handleAddTask}
             onDeleteTask={handleDeleteTask}
+            onUpdateTask={handleUpdateTask}
           />
         )}
 

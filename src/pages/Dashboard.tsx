@@ -4,7 +4,7 @@
  */
 
 import { useState, useMemo } from 'react';
-import { ExternalLink, CreditCard, Calendar as CalendarIcon, FileText, Settings, Sparkles, Receipt, Database, FolderArchive, RefreshCw, Wifi, WifiOff, ChevronLeft, ChevronRight, MapPin } from 'lucide-react';
+import { ExternalLink, CreditCard, Calendar as CalendarIcon, FileText, Settings, Sparkles, Receipt, Database, FolderArchive, RefreshCw, Wifi, WifiOff, ChevronLeft, ChevronRight, MapPin, Trash2, Edit2, X } from 'lucide-react';
 import { getAppConfig, isSafeExternalUrl } from '../config';
 import { Activity } from '../types';
 
@@ -22,9 +22,11 @@ interface DashboardProps {
   syncing?: boolean;
   lastSync?: Date | null;
   schedules?: Activity[];
+  onDeleteSchedule?: (id: string) => Promise<boolean>;
+  onUpdateSchedule?: (id: string, updates: Partial<Omit<Activity, 'id' | 'createdAt'>>) => Promise<boolean>;
 }
 
-export function Dashboard({ onNavigate, totals, syncing, lastSync, schedules }: DashboardProps) {
+export function Dashboard({ onNavigate, totals, syncing, lastSync, schedules, onDeleteSchedule, onUpdateSchedule }: DashboardProps) {
   const config = getAppConfig();
 
   const getGreeting = () => {
@@ -57,6 +59,10 @@ export function Dashboard({ onNavigate, totals, syncing, lastSync, schedules }: 
 
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(new Date());
+  
+  const [editingSchedule, setEditingSchedule] = useState<Activity | null>(null);
+  const [isDeleting, setIsDeleting] = useState<string | null>(null);
+  const [isUpdating, setIsUpdating] = useState(false);
 
   const daysInMonth = useMemo(() => {
     const year = currentMonth.getFullYear();
@@ -213,11 +219,36 @@ export function Dashboard({ onNavigate, totals, syncing, lastSync, schedules }: 
             ) : (
               eventsOnSelectedDate.map(event => (
                 <div key={event.id} className="bg-[#0A0A0B] p-3.5 rounded-xl border border-[#232326] hover:border-[#4FD1C5]/30 transition-colors">
-                  <div className="flex justify-between items-start mb-1.5 gap-2">
+                  <div className="flex justify-between items-start mb-1.5 gap-2 group/header">
                     <span className="text-white font-semibold text-sm leading-tight">{event.title}</span>
-                    <span className="text-[10px] font-bold text-[#4FD1C5] whitespace-nowrap bg-[#4FD1C5]/10 px-2 py-0.5 rounded-md border border-[#4FD1C5]/20">
-                      {event.isAllDay ? 'All Day' : event.time}
-                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <div className="opacity-0 group-hover/header:opacity-100 flex items-center gap-1 transition-opacity">
+                        {onUpdateSchedule && (
+                          <button onClick={() => setEditingSchedule(event)} className="p-1 text-gray-400 hover:text-white transition-colors" title="Edit Schedule">
+                            <Edit2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                        {onDeleteSchedule && (
+                          <button 
+                            onClick={async () => {
+                              if (confirm('Are you sure you want to delete this schedule from Google Calendar?')) {
+                                setIsDeleting(event.id);
+                                await onDeleteSchedule(event.id);
+                                setIsDeleting(null);
+                              }
+                            }}
+                            disabled={isDeleting === event.id}
+                            className={`p-1 text-gray-400 hover:text-red-400 transition-colors ${isDeleting === event.id ? 'opacity-50' : ''}`} 
+                            title="Delete Schedule"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
+                      <span className="text-[10px] font-bold text-[#4FD1C5] whitespace-nowrap bg-[#4FD1C5]/10 px-2 py-0.5 rounded-md border border-[#4FD1C5]/20">
+                        {event.isAllDay ? 'All Day' : event.time}
+                      </span>
+                    </div>
                   </div>
                   {event.location && (
                     <div className="flex items-center gap-1.5 text-xs text-gray-400 mt-2.5">
@@ -306,6 +337,61 @@ export function Dashboard({ onNavigate, totals, syncing, lastSync, schedules }: 
           </div>
         </div>
       </div>
+
+      {/* Edit Schedule Modal */}
+      {editingSchedule && onUpdateSchedule && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in">
+          <div className="bg-[#141416] border border-[#232326] rounded-2xl p-6 w-full max-w-md shadow-2xl relative">
+            <button onClick={() => setEditingSchedule(null)} className="absolute top-4 right-4 text-gray-500 hover:text-white transition-colors">
+              <X className="w-5 h-5" />
+            </button>
+            <h3 className="text-lg font-bold text-white mb-4">Edit Schedule</h3>
+            <form onSubmit={async (e) => {
+              e.preventDefault();
+              setIsUpdating(true);
+              const formData = new FormData(e.currentTarget);
+              const updates: Partial<Activity> = {
+                title: formData.get('title') as string,
+                date: formData.get('date') as string,
+                time: formData.get('time') as string,
+                location: formData.get('location') as string,
+                notes: formData.get('notes') as string,
+              };
+              await onUpdateSchedule(editingSchedule.id, updates);
+              setIsUpdating(false);
+              setEditingSchedule(null);
+            }} className="space-y-4">
+              <div>
+                <label className="block text-xs text-gray-400 mb-1.5 font-medium">Title</label>
+                <input name="title" defaultValue={editingSchedule.title} required className="w-full bg-[#0A0A0B] border border-[#232326] rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-[#4FD1C5] transition-colors" />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs text-gray-400 mb-1.5 font-medium">Date</label>
+                  <input type="date" name="date" defaultValue={editingSchedule.date} required className="w-full bg-[#0A0A0B] border border-[#232326] rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-[#4FD1C5] transition-colors [&::-webkit-calendar-picker-indicator]:invert" />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-400 mb-1.5 font-medium">Time</label>
+                  <input type="time" name="time" defaultValue={editingSchedule.time || ''} className="w-full bg-[#0A0A0B] border border-[#232326] rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-[#4FD1C5] transition-colors [&::-webkit-calendar-picker-indicator]:invert" />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs text-gray-400 mb-1.5 font-medium">Location / Link</label>
+                <input name="location" defaultValue={editingSchedule.location || ''} className="w-full bg-[#0A0A0B] border border-[#232326] rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-[#4FD1C5] transition-colors" />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-400 mb-1.5 font-medium">Notes</label>
+                <textarea name="notes" defaultValue={editingSchedule.notes || ''} rows={3} className="w-full bg-[#0A0A0B] border border-[#232326] rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-[#4FD1C5] transition-colors custom-scrollbar" />
+              </div>
+              <div className="pt-2">
+                <button type="submit" disabled={isUpdating} className="w-full bg-[#4FD1C5] hover:bg-[#4FD1C5]/90 text-[#0A0A0B] font-bold py-2.5 rounded-xl transition-colors disabled:opacity-50">
+                  {isUpdating ? 'Saving...' : 'Save Changes'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
