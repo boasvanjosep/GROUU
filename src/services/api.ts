@@ -237,10 +237,16 @@ function mergeDataById<T extends { id: string }>(gasData: T[], localData: T[], d
       // Check if there is an identical item in GAS data (to handle ID mismatch)
       const isActivity = 'title' in item && 'date' in item;
       let hasDuplicateInGas = false;
+      // Normalize date string (e.g. from 2026-07-25T00:00:00Z to 2026-07-25)
+      const normalizeDate = (d: any) => {
+        if (typeof d === 'string') return d.split('T')[0];
+        return String(d);
+      };
+
       if (isActivity) {
         hasDuplicateInGas = gasData.some(g => 
-          (g as any).title === (item as any).title && 
-          (g as any).date === (item as any).date
+          String((g as any).title).trim() === String((item as any).title).trim() && 
+          normalizeDate((g as any).date) === normalizeDate((item as any).date)
         );
       }
 
