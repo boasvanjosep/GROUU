@@ -234,10 +234,21 @@ function mergeDataById<T extends { id: string }>(gasData: T[], localData: T[], d
   // Drop them if they look like they were previously synced but are now missing from GAS (deleted remotely).
   for (const item of localData) {
     if (!gasIds.has(item.id) && !deleted.has(item.id)) {
+      // Check if there is an identical item in GAS data (to handle ID mismatch)
+      const isActivity = 'title' in item && 'date' in item;
+      let hasDuplicateInGas = false;
+      if (isActivity) {
+        hasDuplicateInGas = gasData.some(g => 
+          (g as any).title === (item as any).title && 
+          (g as any).date === (item as any).date &&
+          (g as any).time === (item as any).time
+        );
+      }
+
       const ageHours = (item as any).createdAt ? (Date.now() - new Date((item as any).createdAt).getTime()) / 3600000 : 0;
-      const hasSyncedBefore = !!((item as any).driveFileUrl || (item as any).driveFileIds || ageHours > 1);
+      const hasSyncedBefore = !!((item as any).isSynced || (item as any).driveFileUrl || (item as any).driveFileIds || ageHours > 1);
       
-      if (!hasSyncedBefore) {
+      if (!hasSyncedBefore && !hasDuplicateInGas) {
         merged.push(item);
       }
     }
@@ -505,7 +516,7 @@ export const apiService = {
         // FIX: ambil .data dari full response
         const result = await requestGas<GasListResponse<Activity>>({ action: 'listSchedules' });
         if (result && Array.isArray(result.data)) {
-          const gasData = result.data as Activity[];
+          const gasData = (result.data as Activity[]).map(item => ({ ...item, isSynced: true }));
           const merged = mergeDataById(gasData, local, deletedScheduleIds);
           localStorage.setItem(STORAGE_KEYS.SCHEDULE, JSON.stringify(merged));
           return merged;

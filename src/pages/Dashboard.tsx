@@ -221,7 +221,15 @@ export function Dashboard({ onNavigate, totals, syncing, lastSync, schedules }: 
                   </div>
                   {event.location && (
                     <div className="flex items-center gap-1.5 text-xs text-gray-400 mt-2.5">
-                      <MapPin className="w-3.5 h-3.5 shrink-0" /> <span className="truncate">{event.location}</span>
+                      <MapPin className="w-3.5 h-3.5 shrink-0" /> 
+                      <a 
+                        href={event.location.includes('http') ? event.location : `https://maps.google.com/?q=${encodeURIComponent(event.location)}`} 
+                        target="_blank" 
+                        rel="noopener noreferrer" 
+                        className="truncate hover:text-[#4FD1C5] hover:underline transition-colors"
+                      >
+                        {event.location}
+                      </a>
                     </div>
                   )}
                   {event.notes && (
