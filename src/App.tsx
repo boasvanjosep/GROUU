@@ -320,6 +320,8 @@ export default function App() {
       const saved = await apiService.createTask(taskData, file);
       setTasks((prev) => [saved, ...prev]);
       triggerToast(`Task "${taskData.name}" created successfully`, 'success');
+      // Silently sync schedules because tasks have deadline events on the calendar
+      apiService.listSchedules().then(dbSchedules => setSchedules(dbSchedules)).catch(() => {});
       return true;
     } catch (err) {
       triggerToast('Error creating task', 'error');
@@ -333,6 +335,8 @@ export default function App() {
       if (success) {
         setTasks((prev) => prev.filter(t => t.id !== id));
         triggerToast('Task deleted successfully', 'success');
+        // Silently sync schedules because the task's event is also deleted from calendar
+        apiService.listSchedules().then(dbSchedules => setSchedules(dbSchedules)).catch(() => {});
         return true;
       }
       return false;
@@ -355,6 +359,8 @@ export default function App() {
       if (updated) {
         setTasks((prev) => prev.map(t => t.id === id ? updated : t));
         triggerToast('Task successfully updated', 'success');
+        // Silently sync schedules because the task's deadline/event might have changed
+        apiService.listSchedules().then(dbSchedules => setSchedules(dbSchedules)).catch(() => {});
         return true;
       }
       return false;
