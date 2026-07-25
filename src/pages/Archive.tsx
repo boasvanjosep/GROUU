@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { Search, RefreshCw, ExternalLink, Paperclip, Grid, List, AlertCircle, PlusCircle, X, Trash2, Link as LinkIcon, UploadCloud, Edit2 } from 'lucide-react';
 import { Note } from '../types';
 
@@ -17,12 +17,7 @@ interface ArchiveProps {
     urls?: string[]
   ) => Promise<boolean>;
   onDeleteNote?: (id: string) => Promise<boolean>;
-  onUpdateNote?: (
-    id: string,
-    updates: Partial<Omit<Note, 'id' | 'createdAt'>>,
-    files?: { fileName: string; fileData: string }[],
-    urls?: string[]
-  ) => Promise<boolean>;
+  onUpdateNote?: (id: string, updates: Partial<Omit<Note, 'id' | 'createdAt'>>, files?: { fileName: string; fileData: string }[], urls?: string[], keptDriveFileIds?: string[], deletedDriveFileIds?: string[]) => Promise<boolean>;
 }
 
 export function Archive({ notes, loading, onRefresh, onAddNote, onDeleteNote, onUpdateNote }: ArchiveProps) {
@@ -42,6 +37,50 @@ export function Archive({ notes, loading, onRefresh, onAddNote, onDeleteNote, on
   const [attachedFiles, setAttachedFiles] = useState<{ fileName: string; fileData: string }[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [editNoteUrls, setEditNoteUrls] = useState<string[]>(['']);
+  const [editExistingFiles, setEditExistingFiles] = useState<{name: string, url: string, id: string}[]>([]);
+  const [editAttachedFiles, setEditAttachedFiles] = useState<{ fileName: string; fileData: string }[]>([]);
+  const [editDeletedFileIds, setEditDeletedFileIds] = useState<string[]>([]);
+  const editFileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleEditClick = (e: React.MouseEvent, note: Note) => {
+    e.stopPropagation();
+    setEditingNote(note);
+    const links = new Set<string>();
+    if (note.url) note.url.split(',').forEach(u => links.add(u.trim()));
+    if (note.urls) note.urls.forEach(u => links.add(u.trim()));
+    const validLinks = Array.from(links).filter(Boolean);
+    setEditNoteUrls(validLinks.length > 0 ? validLinks : ['']);
+    const fileNames = note.attachmentName ? note.attachmentName.split(',').map(s => s.trim()).filter(Boolean) : [];
+    let fileUrls: string[] = [];
+    if (note.driveFileUrl) {
+      fileUrls = note.driveFileUrl.split(',').map(s => s.trim()).filter(Boolean);
+    } else if (note.attachmentUrl) {
+      fileUrls = note.attachmentUrl.split(',').map(s => s.trim()).filter(Boolean);
+    }
+    const fileIds = note.driveFileIds ? note.driveFileIds.split(',').map(s => s.trim()).filter(Boolean) : [];
+    setEditExistingFiles(fileUrls.map((url, i) => ({
+      name: fileNames[i] || 'Attachment',
+      url: url,
+      id: fileIds[i] || url
+    })));
+    setEditAttachedFiles([]);
+    setEditDeletedFileIds([]);
+  };
+
+  const processEditFiles = (files: FileList | File[]) => {
+    const fileArray = Array.from(files);
+    if (fileArray.length === 0) return;
+    fileArray.forEach(file => {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const base64String = (event.target?.result as string).split(',')[1];
+        setEditAttachedFiles(prev => [...prev, { fileName: file.name, fileData: base64String }]);
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
 
   const processFiles = (files: FileList | File[]) => {
     const fileArray = Array.from(files);
@@ -206,6 +245,7 @@ export function Archive({ notes, loading, onRefresh, onAddNote, onDeleteNote, on
     className = '',
     onClick,
   }: {
+    key?: React.Key;
     url: string;
     label: string;
     icon?: 'link' | 'file';
@@ -390,10 +430,7 @@ export function Archive({ notes, loading, onRefresh, onAddNote, onDeleteNote, on
                   <div className="flex gap-2 relative z-10">
                     {onUpdateNote && (
                       <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setEditingNote(note);
-                        }}
+                        onClick={(e) => handleEditClick(e, note)}
                         className="min-h-[44px] min-w-[44px] flex items-center justify-center text-gray-500 hover:text-white bg-transparent rounded-xl transition-colors -mr-2 -mt-1"
                         title="Edit Note"
                       >
@@ -719,10 +756,9 @@ export function Archive({ notes, loading, onRefresh, onAddNote, onDeleteNote, on
                 category: formData.get('category') as string,
                 content: formData.get('content') as string,
               };
-              
-              // Only modifying textual fields for simplicity in edit mode
-              // Files and URLs would require more complex state management in edit modal
-              await onUpdateNote(editingNote.id, updates);
+              const finalUrls = editNoteUrls.filter(u => u.trim() !== '');
+              const keptIds = editExistingFiles.map(f => f.id);
+              await onUpdateNote(editingNote.id, updates, editAttachedFiles, finalUrls, keptIds, editDeletedFileIds);
               setIsSubmitting(false);
               setEditingNote(null);
             }} className="space-y-4 overflow-y-auto custom-scrollbar pr-2">
@@ -739,6 +775,53 @@ export function Archive({ notes, loading, onRefresh, onAddNote, onDeleteNote, on
                 <textarea name="content" defaultValue={editingNote.content} required rows={5} className="w-full bg-[#0A0A0B] border border-[#232326] rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-[#4FD1C5] transition-colors custom-scrollbar" />
               </div>
               
+              <div className="flex flex-col space-y-2">
+                <label className="font-sans text-xs font-medium text-gray-400 flex justify-between items-center">
+                  <span>Links (URLs)</span>
+                  <button type="button" onClick={() => setEditNoteUrls([...editNoteUrls, ''])} className="text-[#B4B0FF] hover:text-white text-xs font-bold cursor-pointer">+ Add</button>
+                </label>
+                {editNoteUrls.map((url, index) => (
+                  <div key={index} className="relative flex items-center gap-2">
+                    <div className="relative flex-1">
+                      <LinkIcon className="w-4 h-4 text-gray-500 absolute left-3 top-1/2 -translate-y-1/2" />
+                      <input type="url" value={url} onChange={(e) => {
+                        const newUrls = [...editNoteUrls];
+                        newUrls[index] = e.target.value;
+                        setEditNoteUrls(newUrls);
+                      }} className="w-full pl-9 bg-[#0A0A0B] border border-[#232326] rounded-xl px-4 py-3 text-xs text-white placeholder-gray-600 focus:border-[#B4B0FF] outline-none" />
+                    </div>
+                    {editNoteUrls.length > 1 && (
+                      <button type="button" onClick={() => setEditNoteUrls(editNoteUrls.filter((_, i) => i !== index))} className="text-red-400 hover:text-red-300 p-2 text-xs font-bold cursor-pointer">✕</button>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex flex-col space-y-1">
+                <label className="font-sans text-xs font-medium text-gray-400">Attachments</label>
+                {editExistingFiles.length > 0 && (
+                  <div className="flex flex-col gap-2 mb-2">
+                    {editExistingFiles.map((file, i) => (
+                      <div key={i} className="flex justify-between items-center bg-[#0A0A0B]/30 border border-[#232326] rounded-lg p-2">
+                        <span className="text-xs text-gray-300 truncate pr-2">{file.name}</span>
+                        <button type="button" onClick={() => {
+                          setEditDeletedFileIds([...editDeletedFileIds, file.id]);
+                          setEditExistingFiles(editExistingFiles.filter((_, idx) => idx !== i));
+                        }} className="text-red-400 hover:text-red-300 text-xs font-bold cursor-pointer px-2">Remove</button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                
+                <div onClick={() => editFileInputRef.current?.click()} className="border-2 border-dashed border-[#232326] hover:border-[#B4B0FF]/60 cursor-pointer rounded-xl p-4 flex flex-col items-center text-center transition-all bg-[#0A0A0B]/10">
+                  <input type="file" ref={editFileInputRef} onChange={(e) => e.target.files && processEditFiles(e.target.files)} className="hidden" multiple />
+                  <UploadCloud className="w-6 h-6 text-gray-500 mb-2" />
+                  <span className="font-sans text-xs font-semibold text-gray-300">
+                    {editAttachedFiles.length > 0 ? `+ ${editAttachedFiles.length} New File(s)` : 'Click to add new files'}
+                  </span>
+                </div>
+              </div>
+              
               <div className="pt-4">
                 <button type="submit" disabled={isSubmitting} className="w-full bg-[#B4B0FF] hover:bg-[#B4B0FF]/90 text-[#0A0A0B] font-bold py-3.5 rounded-xl transition-all disabled:opacity-50">
                   {isSubmitting ? 'Saving...' : 'Save Changes'}
@@ -747,8 +830,7 @@ export function Archive({ notes, loading, onRefresh, onAddNote, onDeleteNote, on
             </form>
           </div>
         </div>
-      )}
-
+            )}
     </div>
   );
 }

@@ -429,7 +429,9 @@ export const apiService = {
     id: string,
     updates: Partial<Omit<Note, 'id' | 'createdAt'>>,
     files?: { fileName: string; fileData: string }[],
-    urls?: string[]
+    urls?: string[],
+    keptDriveFileIds?: string[],
+    deletedDriveFileIds?: string[]
   ): Promise<Note | null> => {
     const config = getAppConfig();
     const currentNotes = getFallbackData<Note>(STORAGE_KEYS.NOTES, INITIAL_NOTES);
@@ -461,7 +463,9 @@ export const apiService = {
           category: updatedNote.category || 'General',
           content: updatedNote.content,
           urls: updatedNote.urls || [],
-          files: files || []
+          files: files || [],
+          keptDriveFileIds: keptDriveFileIds || [],
+          deletedDriveFileIds: deletedDriveFileIds || []
         };
         await requestGas(payload);
       } catch (err) {
@@ -812,7 +816,10 @@ export const apiService = {
   updateTask: async (
     id: string,
     updates: Partial<Omit<Task, 'id' | 'createdAt'>>,
-    file?: { fileName: string; fileData: string }
+    files?: { fileName: string; fileData: string }[],
+    urls?: string[],
+    keptDriveFileIds?: string[],
+    deletedDriveFileIds?: string[]
   ): Promise<Task | null> => {
     const config = getAppConfig();
     const currentTasks = getFallbackData<Task>(STORAGE_KEYS.TASKS, INITIAL_TASKS);
@@ -821,9 +828,13 @@ export const apiService = {
 
     const updatedTask = { ...currentTasks[index], ...updates };
 
-    if (file) {
-      updatedTask.attachmentName = file.fileName;
-      updatedTask.attachmentUrl = `data:${getMimeType(file.fileName)};base64,${file.fileData}`;
+    if (urls && urls.length > 0) {
+      updatedTask.urls = urls;
+    }
+
+    if (files && files.length > 0) {
+      updatedTask.attachmentName = files.map(f => f.fileName).join(', ');
+      updatedTask.attachmentUrl = files.map(f => `data:${getMimeType(f.fileName)};base64,${f.fileData}`).join(', ');
     }
 
     currentTasks[index] = updatedTask;
@@ -841,11 +852,10 @@ export const apiService = {
           time: updatedTask.time || '',
           reminderMinutes: updatedTask.reminderMinutes !== undefined ? updatedTask.reminderMinutes : 10,
           url: updatedTask.urls && updatedTask.urls.length > 0 ? updatedTask.urls.join(', ') : (updatedTask.url || ''),
+          files: files || [],
+          keptDriveFileIds: keptDriveFileIds || [],
+          deletedDriveFileIds: deletedDriveFileIds || []
         };
-        if (file) {
-          payload.fileData = file.fileData;
-          payload.fileName = file.fileName;
-        }
 
         const res = await requestGas<{data: {driveFileUrl?: string, driveFileIds?: string}}>(payload);
         if (res && res.data && (res.data.driveFileUrl || res.data.driveFileIds)) {

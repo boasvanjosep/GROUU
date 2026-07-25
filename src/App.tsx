@@ -340,10 +340,13 @@ export default function App() {
   const handleUpdateTask = async (
     id: string,
     updates: Partial<Omit<Task, 'id' | 'createdAt'>>,
-    file?: { fileName: string; fileData: string }
+    files?: { fileName: string; fileData: string }[],
+    urls?: string[],
+    keptDriveFileIds?: string[],
+    deletedDriveFileIds?: string[]
   ): Promise<boolean> => {
     try {
-      const updated = await apiService.updateTask(id, updates, file);
+      const updated = await apiService.updateTask(id, updates, files, urls, keptDriveFileIds, deletedDriveFileIds);
       if (updated) {
         setTasks((prev) => prev.map(t => t.id === id ? updated : t));
         triggerToast('Task successfully updated', 'success');

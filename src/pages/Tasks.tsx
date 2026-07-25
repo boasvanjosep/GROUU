@@ -1,5 +1,5 @@
-import { useState, useMemo, useCallback, useEffect } from 'react';
-import { Search, RefreshCw, ExternalLink, Paperclip, Grid, List, AlertCircle, PlusCircle, X, Trash2, Calendar } from 'lucide-react';
+import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
+import { Search, RefreshCw, ExternalLink, Paperclip, Grid, List, AlertCircle, PlusCircle, X, Trash2, Calendar, Link as LinkIcon, UploadCloud } from 'lucide-react';
 import { Task, TaskProgress } from '../types';
 
 interface TasksProps {
@@ -8,7 +8,7 @@ interface TasksProps {
   onRefresh: () => void;
   onAddTask: (data: Omit<Task, 'id' | 'createdAt'>, file?: { fileName: string; fileData: string }) => Promise<boolean>;
   onDeleteTask: (id: string) => Promise<boolean>;
-  onUpdateTask?: (id: string, updates: Partial<Omit<Task, 'id' | 'createdAt'>>, file?: { fileName: string; fileData: string }) => Promise<boolean>;
+  onUpdateTask?: (id: string, updates: Partial<Omit<Task, 'id' | 'createdAt'>>, files?: { fileName: string; fileData: string }[], urls?: string[], keptDriveFileIds?: string[], deletedDriveFileIds?: string[]) => Promise<boolean>;
 }
 
 export function Tasks({ tasks, loading, onRefresh, onAddTask, onDeleteTask, onUpdateTask }: TasksProps) {
@@ -40,6 +40,50 @@ export function Tasks({ tasks, loading, onRefresh, onAddTask, onDeleteTask, onUp
   const [urlInput, setUrlInput] = useState('');
   const [fileToUpload, setFileToUpload] = useState<File | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [editTaskUrls, setEditTaskUrls] = useState<string[]>(['']);
+  const [editExistingFiles, setEditExistingFiles] = useState<{name: string, url: string, id: string}[]>([]);
+  const [editAttachedFiles, setEditAttachedFiles] = useState<{ fileName: string; fileData: string }[]>([]);
+  const [editDeletedFileIds, setEditDeletedFileIds] = useState<string[]>([]);
+  const editFileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleEditClick = (e: React.MouseEvent, task: Task) => {
+    e.stopPropagation();
+    setEditingTask(task);
+    const links = new Set<string>();
+    if (task.url) task.url.split(',').forEach(u => links.add(u.trim()));
+    if (task.urls) task.urls.forEach(u => links.add(u.trim()));
+    const validLinks = Array.from(links).filter(Boolean);
+    setEditTaskUrls(validLinks.length > 0 ? validLinks : ['']);
+    const fileNames = task.attachmentName ? task.attachmentName.split(',').map(s => s.trim()).filter(Boolean) : [];
+    let fileUrls: string[] = [];
+    if (task.driveFileUrl) {
+      fileUrls = task.driveFileUrl.split(',').map(s => s.trim()).filter(Boolean);
+    } else if (task.attachmentUrl) {
+      fileUrls = task.attachmentUrl.split(',').map(s => s.trim()).filter(Boolean);
+    }
+    const fileIds = task.driveFileIds ? task.driveFileIds.split(',').map(s => s.trim()).filter(Boolean) : [];
+    setEditExistingFiles(fileUrls.map((url, i) => ({
+      name: fileNames[i] || 'Attachment',
+      url: url,
+      id: fileIds[i] || url
+    })));
+    setEditAttachedFiles([]);
+    setEditDeletedFileIds([]);
+  };
+
+  const processEditFiles = (files: FileList | File[]) => {
+    const fileArray = Array.from(files);
+    if (fileArray.length === 0) return;
+    fileArray.forEach(file => {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const base64String = (event.target?.result as string).split(',')[1];
+        setEditAttachedFiles(prev => [...prev, { fileName: file.name, fileData: base64String }]);
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
 
   useEffect(() => {
     onRefresh();
@@ -92,6 +136,7 @@ export function Tasks({ tasks, loading, onRefresh, onAddTask, onDeleteTask, onUp
     icon = 'link',
     className = '',
   }: {
+    key?: React.Key;
     url: string;
     label: string;
     icon?: 'link' | 'file';
@@ -308,10 +353,7 @@ export function Tasks({ tasks, loading, onRefresh, onAddTask, onDeleteTask, onUp
                   <div className="flex gap-2 relative z-40">
                     {onUpdateTask && (
                       <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setEditingTask(task);
-                        }}
+                        onClick={(e) => handleEditClick(e, task)}
                         className="min-h-[44px] min-w-[44px] flex items-center justify-center text-gray-500 hover:text-white bg-transparent rounded-xl transition-colors -mr-2 -mt-1"
                         title="Edit Task"
                       >
@@ -685,7 +727,9 @@ export function Tasks({ tasks, loading, onRefresh, onAddTask, onDeleteTask, onUp
                 deadline: formData.get('deadline') as string,
                 time: formData.get('time') as string,
               };
-              await onUpdateTask(editingTask.id, updates);
+              const finalUrls = editTaskUrls.filter(u => u.trim() !== '');
+              const keptIds = editExistingFiles.map(f => f.id);
+              await onUpdateTask(editingTask.id, updates, editAttachedFiles, finalUrls, keptIds, editDeletedFileIds);
               setIsSubmitting(false);
               setEditingTask(null);
             }} className="space-y-4 overflow-y-auto custom-scrollbar pr-2">
@@ -717,6 +761,54 @@ export function Tasks({ tasks, loading, onRefresh, onAddTask, onDeleteTask, onUp
                   <input type="time" name="time" defaultValue={editingTask.time || ''} className="w-full bg-[#0A0A0B] border border-[#232326] rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-[#4FD1C5] transition-colors [&::-webkit-calendar-picker-indicator]:invert" />
                 </div>
               </div>
+
+              <div className="flex flex-col space-y-2">
+                <label className="font-sans text-xs font-medium text-gray-400 flex justify-between items-center">
+                  <span>Links (URLs)</span>
+                  <button type="button" onClick={() => setEditTaskUrls([...editTaskUrls, ''])} className="text-[#B4B0FF] hover:text-white text-xs font-bold cursor-pointer">+ Add</button>
+                </label>
+                {editTaskUrls.map((url, index) => (
+                  <div key={index} className="relative flex items-center gap-2">
+                    <div className="relative flex-1">
+                      <LinkIcon className="w-4 h-4 text-gray-500 absolute left-3 top-1/2 -translate-y-1/2" />
+                      <input type="url" value={url} onChange={(e) => {
+                        const newUrls = [...editTaskUrls];
+                        newUrls[index] = e.target.value;
+                        setEditTaskUrls(newUrls);
+                      }} className="w-full pl-9 bg-[#0A0A0B] border border-[#232326] rounded-xl px-4 py-3 text-xs text-white placeholder-gray-600 focus:border-[#B4B0FF] outline-none" />
+                    </div>
+                    {editTaskUrls.length > 1 && (
+                      <button type="button" onClick={() => setEditTaskUrls(editTaskUrls.filter((_, i) => i !== index))} className="text-red-400 hover:text-red-300 p-2 text-xs font-bold cursor-pointer">✕</button>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex flex-col space-y-1">
+                <label className="font-sans text-xs font-medium text-gray-400">Attachments</label>
+                {editExistingFiles.length > 0 && (
+                  <div className="flex flex-col gap-2 mb-2">
+                    {editExistingFiles.map((file, i) => (
+                      <div key={i} className="flex justify-between items-center bg-[#0A0A0B]/30 border border-[#232326] rounded-lg p-2">
+                        <span className="text-xs text-gray-300 truncate pr-2">{file.name}</span>
+                        <button type="button" onClick={() => {
+                          setEditDeletedFileIds([...editDeletedFileIds, file.id]);
+                          setEditExistingFiles(editExistingFiles.filter((_, idx) => idx !== i));
+                        }} className="text-red-400 hover:text-red-300 text-xs font-bold cursor-pointer px-2">Remove</button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                
+                <div onClick={() => editFileInputRef.current?.click()} className="border-2 border-dashed border-[#232326] hover:border-[#B4B0FF]/60 cursor-pointer rounded-xl p-4 flex flex-col items-center text-center transition-all bg-[#0A0A0B]/10">
+                  <input type="file" ref={editFileInputRef} onChange={(e) => e.target.files && processEditFiles(e.target.files)} className="hidden" multiple />
+                  <UploadCloud className="w-6 h-6 text-gray-500 mb-2" />
+                  <span className="font-sans text-xs font-semibold text-gray-300">
+                    {editAttachedFiles.length > 0 ? `+ ${editAttachedFiles.length} New File(s)` : 'Click to add new files'}
+                  </span>
+                </div>
+              </div>
+              
               <div className="pt-4">
                 <button type="submit" disabled={isSubmitting} className="w-full bg-[#4FD1C5] hover:bg-[#4FD1C5]/90 text-[#0A0A0B] font-bold py-3.5 rounded-xl transition-all disabled:opacity-50">
                   {isSubmitting ? 'Saving...' : 'Save Changes'}
@@ -725,8 +817,7 @@ export function Tasks({ tasks, loading, onRefresh, onAddTask, onDeleteTask, onUp
             </form>
           </div>
         </div>
-      )}
-
+            )}
     </div>
   );
 }
