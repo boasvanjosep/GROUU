@@ -240,8 +240,7 @@ function mergeDataById<T extends { id: string }>(gasData: T[], localData: T[], d
       if (isActivity) {
         hasDuplicateInGas = gasData.some(g => 
           (g as any).title === (item as any).title && 
-          (g as any).date === (item as any).date &&
-          (g as any).time === (item as any).time
+          (g as any).date === (item as any).date
         );
       }
 
