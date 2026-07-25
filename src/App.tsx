@@ -256,6 +256,11 @@ export default function App() {
       if (success) {
         setSchedules((prev) => prev.filter(s => s.id !== id));
         triggerToast('Schedule successfully deleted', 'success');
+        // Silently re-sync tasks — the deleted calendar event might be a Task deadline,
+        // and GAS v1.4.1 will have already removed it from the Sheet.
+        apiService.listTasks()
+          .then(dbTasks => setTasks(dbTasks))
+          .catch(() => {});
         return true;
       }
       return false;
