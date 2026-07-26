@@ -34,14 +34,14 @@ export function Tasks({ tasks, loading, onRefresh, onAddTask, onDeleteTask, onUp
     progress: 'Not Yet',
     deadline: '',
     time: '',
-    reminderMinutes: 10,
+    reminderMinutes: 1440,
     urls: [],
   });
   const [urlInput, setUrlInput] = useState('');
   const [fileToUpload, setFileToUpload] = useState<File | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [editTaskUrls, setEditTaskUrls] = useState<string[]>(['']);
-  const [editExistingFiles, setEditExistingFiles] = useState<{name: string, url: string, id: string}[]>([]);
+  const [editExistingFiles, setEditExistingFiles] = useState<{ name: string, url: string, id: string }[]>([]);
   const [editAttachedFiles, setEditAttachedFiles] = useState<{ fileName: string; fileData: string }[]>([]);
   const [editDeletedFileIds, setEditDeletedFileIds] = useState<string[]>([]);
   const editFileInputRef = useRef<HTMLInputElement>(null);
@@ -180,7 +180,7 @@ export function Tasks({ tasks, loading, onRefresh, onAddTask, onDeleteTask, onUp
       const dateA = new Date(a.deadline).getTime() || 0;
       const dateB = new Date(b.deadline).getTime() || 0;
       if (dateA !== dateB) return dateA - dateB;
-      
+
       const pOrder = { 'Not Yet': 0, 'On Progress': 1, 'Done': 2 };
       return pOrder[a.progress] - pOrder[b.progress];
     });
@@ -246,7 +246,7 @@ export function Tasks({ tasks, loading, onRefresh, onAddTask, onDeleteTask, onUp
 
       if (success) {
         setShowCreateModal(false);
-        setNewTask({ name: '', subject: '', progress: 'Not Yet', deadline: '', time: '', reminderMinutes: 10, urls: [] });
+        setNewTask({ name: '', subject: '', progress: 'Not Yet', deadline: '', time: '', reminderMinutes: 1440, urls: [] });
         setUrlInput('');
         setFileToUpload(null);
       }
@@ -275,7 +275,7 @@ export function Tasks({ tasks, loading, onRefresh, onAddTask, onDeleteTask, onUp
             <PlusCircle className="w-4 h-4" />
             <span>New Task</span>
           </button>
-          
+
           <button
             onClick={handleRefresh}
             disabled={isBusy}
@@ -357,7 +357,7 @@ export function Tasks({ tasks, loading, onRefresh, onAddTask, onDeleteTask, onUp
                         className="min-h-[44px] min-w-[44px] flex items-center justify-center text-gray-500 hover:text-white bg-transparent rounded-xl transition-colors -mr-2 -mt-1"
                         title="Edit Task"
                       >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-edit-2 w-4 h-4"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-edit-2 w-4 h-4"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" /></svg>
                       </button>
                     )}
                     <button
@@ -382,8 +382,8 @@ export function Tasks({ tasks, loading, onRefresh, onAddTask, onDeleteTask, onUp
                 <div className="flex items-center gap-1.5 text-xs text-gray-400 mb-4">
                   <Calendar className="w-3.5 h-3.5" />
                   <span>
-                    Deadline: {formatDate(task.deadline)} 
-                    {task.time ? ` at ${task.time}` : (task.deadline && task.deadline.includes('T') && task.deadline.length > 10 ? ` at ${new Date(task.deadline).toLocaleTimeString('id-ID', {hour: '2-digit', minute:'2-digit'})}` : '')}
+                    Deadline: {formatDate(task.deadline)}
+                    {task.time ? ` at ${task.time}` : (task.deadline && task.deadline.includes('T') && task.deadline.length > 10 ? ` at ${new Date(task.deadline).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}` : '')}
                   </span>
                 </div>
               </div>
@@ -414,9 +414,9 @@ export function Tasks({ tasks, loading, onRefresh, onAddTask, onDeleteTask, onUp
                       fileUrls.push(...task.attachmentUrl.split(',').map(s => s.trim()).filter(Boolean));
                     }
                     if (fileUrls.length === 0) return null;
-                    
+
                     const fileNames = task.attachmentName ? task.attachmentName.split(',').map(s => s.trim()).filter(Boolean) : [];
-                    
+
                     return fileUrls.map((fUrl, i) => {
                       const fName = fileNames[i] || (fileUrls.length > 1 ? `View Attachment ${i + 1}` : 'View Attachment');
                       return (
@@ -467,7 +467,7 @@ export function Tasks({ tasks, loading, onRefresh, onAddTask, onDeleteTask, onUp
                     {selectedTask.progress}
                   </span>
                   <span className="font-mono text-[10px] text-gray-500 tracking-wider font-semibold uppercase">
-                    Deadline: {formatDate(selectedTask.deadline)} {selectedTask.time ? ` at ${selectedTask.time}` : (selectedTask.deadline && selectedTask.deadline.includes('T') && selectedTask.deadline.length > 10 ? ` at ${new Date(selectedTask.deadline).toLocaleTimeString('id-ID', {hour: '2-digit', minute:'2-digit'})}` : '')}
+                    Deadline: {formatDate(selectedTask.deadline)} {selectedTask.time ? ` at ${selectedTask.time}` : (selectedTask.deadline && selectedTask.deadline.includes('T') && selectedTask.deadline.length > 10 ? ` at ${new Date(selectedTask.deadline).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}` : '')}
                   </span>
                 </div>
                 <h3 className="font-sans text-lg font-bold text-white tracking-tight leading-snug">
@@ -514,7 +514,7 @@ export function Tasks({ tasks, loading, onRefresh, onAddTask, onDeleteTask, onUp
                     className="inline-flex items-center gap-1.5 text-xs text-[#4FD1C5] bg-[#0A0A0B]/50 border border-[#232326] px-3 py-2.5 rounded-xl min-h-[44px] active:scale-[0.98]"
                   />
                 )}
-                
+
                 {(selectedTask.attachmentName || selectedTask.driveFileUrl || selectedTask.attachmentUrl) && (() => {
                   const fileUrls: string[] = [];
                   if (selectedTask.driveFileUrl) {
@@ -525,7 +525,7 @@ export function Tasks({ tasks, loading, onRefresh, onAddTask, onDeleteTask, onUp
                   if (fileUrls.length === 0) return null;
 
                   const fileNames = selectedTask.attachmentName ? selectedTask.attachmentName.split(',').map(s => s.trim()).filter(Boolean) : [];
-                  
+
                   return fileUrls.map((fUrl, i) => {
                     const fName = fileNames[i] || (fileUrls.length > 1 ? `View Attachment ${i + 1}` : 'View Attachment');
                     return (
@@ -555,12 +555,12 @@ export function Tasks({ tasks, loading, onRefresh, onAddTask, onDeleteTask, onUp
       {/* Create Task Modal */}
       {showCreateModal && (
         <div className="fixed inset-0 bg-[#0A0A0B]/85 backdrop-blur-md z-[100] flex items-center justify-center p-4">
-          <div 
+          <div
             className="w-full max-w-md bg-[#1C1C1E] border border-[#232326] rounded-2xl shadow-2xl relative flex flex-col"
             style={{ maxHeight: 'calc(92dvh - env(safe-area-inset-bottom, 0px))' }}
           >
             <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-[#B4B0FF] to-[#4FD1C5] rounded-t-2xl" />
-            
+
             <div className="flex justify-between items-center p-5 border-b border-[#232326] shrink-0">
               <h3 className="font-sans text-lg font-bold text-white">Create New Task</h3>
               <button
@@ -578,7 +578,7 @@ export function Tasks({ tasks, loading, onRefresh, onAddTask, onDeleteTask, onUp
                   type="text"
                   required
                   value={newTask.name}
-                  onChange={e => setNewTask({...newTask, name: e.target.value})}
+                  onChange={e => setNewTask({ ...newTask, name: e.target.value })}
                   className="w-full min-h-[44px] bg-[#0A0A0B] border border-[#232326] rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-[#B4B0FF]"
                   placeholder="e.g. Complete User Authentication"
                 />
@@ -590,7 +590,7 @@ export function Tasks({ tasks, loading, onRefresh, onAddTask, onDeleteTask, onUp
                   type="text"
                   required
                   value={newTask.subject}
-                  onChange={e => setNewTask({...newTask, subject: e.target.value})}
+                  onChange={e => setNewTask({ ...newTask, subject: e.target.value })}
                   className="w-full min-h-[44px] bg-[#0A0A0B] border border-[#232326] rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-[#B4B0FF]"
                   placeholder="e.g. Frontend, Math, Project A"
                 />
@@ -600,7 +600,7 @@ export function Tasks({ tasks, loading, onRefresh, onAddTask, onDeleteTask, onUp
                 <label className="text-xs text-gray-400 font-sans">Progress</label>
                 <select
                   value={newTask.progress}
-                  onChange={e => setNewTask({...newTask, progress: e.target.value as TaskProgress})}
+                  onChange={e => setNewTask({ ...newTask, progress: e.target.value as TaskProgress })}
                   className="w-full min-h-[44px] bg-[#0A0A0B] border border-[#232326] rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-[#B4B0FF] appearance-none"
                 >
                   <option value="Not Yet">Not Yet</option>
@@ -616,7 +616,7 @@ export function Tasks({ tasks, loading, onRefresh, onAddTask, onDeleteTask, onUp
                     type="date"
                     required
                     value={newTask.deadline}
-                    onChange={e => setNewTask({...newTask, deadline: e.target.value})}
+                    onChange={e => setNewTask({ ...newTask, deadline: e.target.value })}
                     className="w-full min-h-[44px] bg-[#0A0A0B] border border-[#232326] rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-[#B4B0FF] [color-scheme:dark]"
                   />
                 </div>
@@ -625,7 +625,7 @@ export function Tasks({ tasks, loading, onRefresh, onAddTask, onDeleteTask, onUp
                   <input
                     type="time"
                     value={newTask.time}
-                    onChange={e => setNewTask({...newTask, time: e.target.value})}
+                    onChange={e => setNewTask({ ...newTask, time: e.target.value })}
                     className="w-full min-h-[44px] bg-[#0A0A0B] border border-[#232326] rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-[#B4B0FF] [color-scheme:dark]"
                   />
                 </div>
@@ -635,7 +635,7 @@ export function Tasks({ tasks, loading, onRefresh, onAddTask, onDeleteTask, onUp
                 <label className="text-xs text-gray-400 font-sans">Notify Reminder (Calendar)</label>
                 <select
                   value={newTask.reminderMinutes}
-                  onChange={e => setNewTask({...newTask, reminderMinutes: Number(e.target.value)})}
+                  onChange={e => setNewTask({ ...newTask, reminderMinutes: Number(e.target.value) })}
                   className="w-full min-h-[44px] bg-[#0A0A0B] border border-[#232326] rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-[#B4B0FF] appearance-none"
                 >
                   <option value={0}>At time of event</option>
@@ -662,7 +662,7 @@ export function Tasks({ tasks, loading, onRefresh, onAddTask, onDeleteTask, onUp
                     type="button"
                     onClick={() => {
                       if (urlInput) {
-                        setNewTask({...newTask, urls: [...newTask.urls, urlInput]});
+                        setNewTask({ ...newTask, urls: [...newTask.urls, urlInput] });
                         setUrlInput('');
                       }
                     }}
@@ -676,7 +676,7 @@ export function Tasks({ tasks, loading, onRefresh, onAddTask, onDeleteTask, onUp
                     {newTask.urls.map((u, i) => (
                       <div key={i} className="flex justify-between items-center text-xs text-[#4FD1C5] bg-[#0A0A0B]/50 border border-[#232326] px-3 py-2 rounded-xl min-h-[36px]">
                         <span className="truncate pr-2">{u}</span>
-                        <button type="button" onClick={() => setNewTask({...newTask, urls: newTask.urls.filter((_, idx) => idx !== i)})} className="text-red-400 hover:text-red-300 p-1">
+                        <button type="button" onClick={() => setNewTask({ ...newTask, urls: newTask.urls.filter((_, idx) => idx !== i) })} className="text-red-400 hover:text-red-300 p-1">
                           <X className="w-3.5 h-3.5" />
                         </button>
                       </div>
@@ -799,7 +799,7 @@ export function Tasks({ tasks, loading, onRefresh, onAddTask, onDeleteTask, onUp
                     ))}
                   </div>
                 )}
-                
+
                 <div onClick={() => editFileInputRef.current?.click()} className="border-2 border-dashed border-[#232326] hover:border-[#B4B0FF]/60 cursor-pointer rounded-xl p-4 flex flex-col items-center text-center transition-all bg-[#0A0A0B]/10">
                   <input type="file" ref={editFileInputRef} onChange={(e) => e.target.files && processEditFiles(e.target.files)} className="hidden" multiple />
                   <UploadCloud className="w-6 h-6 text-gray-500 mb-2" />
@@ -808,7 +808,7 @@ export function Tasks({ tasks, loading, onRefresh, onAddTask, onDeleteTask, onUp
                   </span>
                 </div>
               </div>
-              
+
               <div className="pt-4">
                 <button type="submit" disabled={isSubmitting} className="w-full bg-[#4FD1C5] hover:bg-[#4FD1C5]/90 text-[#0A0A0B] font-bold py-3.5 rounded-xl transition-all disabled:opacity-50">
                   {isSubmitting ? 'Saving...' : 'Save Changes'}
@@ -817,7 +817,7 @@ export function Tasks({ tasks, loading, onRefresh, onAddTask, onDeleteTask, onUp
             </form>
           </div>
         </div>
-            )}
+      )}
     </div>
   );
 }

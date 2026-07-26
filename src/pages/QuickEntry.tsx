@@ -121,7 +121,7 @@ export function QuickEntry({ initialSubtab = 'expense', onAddExpense, onAddActiv
   const [activityTime, setActivityTime] = useState('');
   const [activityEndTime, setActivityEndTime] = useState('');
   const [activityIsAllDay, setActivityIsAllDay] = useState(false);
-  const [activityReminderMinutes, setActivityReminderMinutes] = useState<number>(10);
+  const [activityReminderMinutes, setActivityReminderMinutes] = useState<number>(30);
   const [activityLocation, setActivityLocation] = useState('');
   const [activityNotes, setActivityNotes] = useState('');
 
@@ -154,7 +154,7 @@ export function QuickEntry({ initialSubtab = 'expense', onAddExpense, onAddActiv
       setActivityTime('');
       setActivityEndTime('');
       setActivityIsAllDay(false);
-      setActivityReminderMinutes(10);
+      setActivityReminderMinutes(30);
       setActivityLocation('');
       setActivityNotes('');
     }
@@ -180,8 +180,8 @@ export function QuickEntry({ initialSubtab = 'expense', onAddExpense, onAddActiv
           <button
             onClick={() => setActiveForm('expense')}
             className={`py-2 px-1 sm:py-2 sm:px-3 rounded-lg text-[11px] sm:text-xs font-semibold font-sans flex items-center justify-center gap-1 sm:gap-1.5 transition-all cursor-pointer ${activeForm === 'expense'
-                ? 'bg-[#B4B0FF] text-[#0A0A0B]'
-                : 'text-gray-400 hover:text-white'
+              ? 'bg-[#B4B0FF] text-[#0A0A0B]'
+              : 'text-gray-400 hover:text-white'
               }`}
           >
             <CreditCard className="w-3.5 h-3.5" />
@@ -191,8 +191,8 @@ export function QuickEntry({ initialSubtab = 'expense', onAddExpense, onAddActiv
           <button
             onClick={() => setActiveForm('activity')}
             className={`py-2 px-1 sm:py-2 sm:px-3 rounded-lg text-[11px] sm:text-xs font-semibold font-sans flex items-center justify-center gap-1 sm:gap-1.5 transition-all cursor-pointer ${activeForm === 'activity'
-                ? 'bg-[#4FD1C5] text-[#0A0A0B]'
-                : 'text-gray-400 hover:text-white'
+              ? 'bg-[#4FD1C5] text-[#0A0A0B]'
+              : 'text-gray-400 hover:text-white'
               }`}
           >
             <Calendar className="w-3.5 h-3.5" />
@@ -259,8 +259,8 @@ export function QuickEntry({ initialSubtab = 'expense', onAddExpense, onAddActiv
                     type="button"
                     onClick={() => setExpenseCategory(cat.id)}
                     className={`px-3 py-2 rounded-full font-sans text-[11px] tracking-wide uppercase transition-all cursor-pointer ${expenseCategory === cat.id
-                        ? 'bg-[#B4B0FF]/20 text-[#B4B0FF] border border-[#B4B0FF]/50 font-bold shadow-[0_0_10px_rgba(180,176,255,0.15)]'
-                        : 'bg-[#0A0A0B] text-gray-400 border border-[#232326] hover:border-gray-600'
+                      ? 'bg-[#B4B0FF]/20 text-[#B4B0FF] border border-[#B4B0FF]/50 font-bold shadow-[0_0_10px_rgba(180,176,255,0.15)]'
+                      : 'bg-[#0A0A0B] text-gray-400 border border-[#232326] hover:border-gray-600'
                       }`}
                   >
                     {cat.label}
@@ -277,8 +277,8 @@ export function QuickEntry({ initialSubtab = 'expense', onAddExpense, onAddActiv
                 <div
                   onClick={() => setPayGroup('Cash')}
                   className={`p-3 rounded-xl border flex flex-col items-center justify-center text-center cursor-pointer transition-all ${payGroup === 'Cash'
-                      ? 'border-[#4FD1C5] bg-[#4FD1C5]/5 text-[#4FD1C5] font-bold'
-                      : 'border-[#232326] bg-[#0A0A0B] text-gray-400 hover:text-white hover:border-gray-600'
+                    ? 'border-[#4FD1C5] bg-[#4FD1C5]/5 text-[#4FD1C5] font-bold'
+                    : 'border-[#232326] bg-[#0A0A0B] text-gray-400 hover:text-white hover:border-gray-600'
                     }`}
                 >
                   <CreditCard className="w-4 h-4 mb-1" />
@@ -289,8 +289,8 @@ export function QuickEntry({ initialSubtab = 'expense', onAddExpense, onAddActiv
                 <div
                   onClick={() => setPayGroup('Bank')}
                   className={`p-3 rounded-xl border flex flex-col items-center justify-center text-center cursor-pointer transition-all ${payGroup === 'Bank'
-                      ? 'border-[#4FD1C5] bg-[#4FD1C5]/5 text-[#4FD1C5] font-bold'
-                      : 'border-[#232326] bg-[#0A0A0B] text-gray-400 hover:text-white hover:border-gray-600'
+                    ? 'border-[#4FD1C5] bg-[#4FD1C5]/5 text-[#4FD1C5] font-bold'
+                    : 'border-[#232326] bg-[#0A0A0B] text-gray-400 hover:text-white hover:border-gray-600'
                     }`}
                 >
                   <Landmark className="w-4 h-4 mb-1" />
@@ -301,8 +301,8 @@ export function QuickEntry({ initialSubtab = 'expense', onAddExpense, onAddActiv
                 <div
                   onClick={() => setPayGroup('E-Wallet')}
                   className={`p-3 rounded-xl border flex flex-col items-center justify-center text-center cursor-pointer transition-all ${payGroup === 'E-Wallet'
-                      ? 'border-[#4FD1C5] bg-[#4FD1C5]/5 text-[#4FD1C5] font-bold'
-                      : 'border-[#232326] bg-[#0A0A0B] text-gray-400 hover:text-white hover:border-gray-600'
+                    ? 'border-[#4FD1C5] bg-[#4FD1C5]/5 text-[#4FD1C5] font-bold'
+                    : 'border-[#232326] bg-[#0A0A0B] text-gray-400 hover:text-white hover:border-gray-600'
                     }`}
                 >
                   <Wallet className="w-4 h-4 mb-1" />
@@ -313,8 +313,8 @@ export function QuickEntry({ initialSubtab = 'expense', onAddExpense, onAddActiv
                 <div
                   onClick={() => setPayGroup('Lainnya')}
                   className={`p-3 rounded-xl border flex flex-col items-center justify-center text-center cursor-pointer transition-all ${payGroup === 'Lainnya'
-                      ? 'border-[#4FD1C5] bg-[#4FD1C5]/5 text-[#4FD1C5] font-bold'
-                      : 'border-[#232326] bg-[#0A0A0B] text-gray-400 hover:text-white hover:border-gray-600'
+                    ? 'border-[#4FD1C5] bg-[#4FD1C5]/5 text-[#4FD1C5] font-bold'
+                    : 'border-[#232326] bg-[#0A0A0B] text-gray-400 hover:text-white hover:border-gray-600'
                     }`}
                 >
                   <Plus className="w-4 h-4 mb-1" />
@@ -448,14 +448,14 @@ export function QuickEntry({ initialSubtab = 'expense', onAddExpense, onAddActiv
               {/* All Day Toggle */}
               <div className="flex flex-col space-y-1">
                 <label className="font-sans text-xs font-medium text-gray-400">Tipe Acara</label>
-                <div 
+                <div
                   className="flex items-center h-[42px] space-x-3 bg-[#0A0A0B] border border-[#232326] rounded-xl px-4 w-full cursor-pointer hover:border-[#4FD1C5]/50 transition-colors"
                   onClick={() => setActivityIsAllDay(!activityIsAllDay)}
                 >
                   <label htmlFor="allDayToggle" className="relative inline-flex items-center cursor-pointer pointer-events-none">
-                    <input 
-                      type="checkbox" 
-                      id="allDayToggle" 
+                    <input
+                      type="checkbox"
+                      id="allDayToggle"
                       className="sr-only peer"
                       checked={activityIsAllDay}
                       readOnly
@@ -479,9 +479,9 @@ export function QuickEntry({ initialSubtab = 'expense', onAddExpense, onAddActiv
                 >
                   <option value={0} className="bg-[#1C1C1E]">Tepat saat acara mulai</option>
                   <option value={5} className="bg-[#1C1C1E]">5 menit sebelum</option>
-                  <option value={10} className="bg-[#1C1C1E]">10 menit sebelum (Default)</option>
+                  <option value={10} className="bg-[#1C1C1E]">10 menit sebelum </option>
                   <option value={15} className="bg-[#1C1C1E]">15 menit sebelum</option>
-                  <option value={30} className="bg-[#1C1C1E]">30 menit sebelum</option>
+                  <option value={30} className="bg-[#1C1C1E]">30 menit sebelum (Default)</option>
                   <option value={60} className="bg-[#1C1C1E]">1 jam sebelum</option>
                   <option value={1440} className="bg-[#1C1C1E]">1 hari sebelum</option>
                 </select>
